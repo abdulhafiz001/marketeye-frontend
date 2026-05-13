@@ -1,0 +1,56 @@
+{
+  "expo": {
+    "name": "Market Eye",
+    "slug": "Market Eye",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/naija-price-img.png",
+    "scheme": "Marketeye",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/images/naija-price-img.png",
+        "backgroundImage": "./assets/images/naija-price-img.png",
+        "monochromeImage": "./assets/images/naija-price-img.png"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/naija-price-img.png"
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/naija-price-img.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "backgroundColor": "#000000"
+          }
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Market Eye uses your location to estimate distance to markets when comparing prices."
+        }
+      ]
+    ],
+    "extra": {
+      "apiUrl": "http://127.0.0.1:8000/api/v1"
+    },
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
