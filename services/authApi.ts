@@ -11,6 +11,7 @@ export type AuthUser = {
   avatar: string | null;
   role: string;
   points: number;
+  wallet_balance?: number;
   verified: boolean;
 };
 
@@ -29,6 +30,34 @@ export async function registerRequest(payload: { name: string; email: string; pa
     payload
   );
   await persistToken(data.data.token);
+  return data.data;
+}
+
+export async function googleLoginRequest(idToken: string) {
+  const { data } = await api.post<ApiSuccess<{ user: AuthUser; token: string; token_type: string }>>('/auth/google', {
+    id_token: idToken,
+  });
+  await persistToken(data.data.token);
+  return data.data;
+}
+
+export async function forgotPasswordRequest(email: string) {
+  const { data } = await api.post<ApiSuccess<null>>('/auth/forgot-password', { email });
+  return data;
+}
+
+export async function verifyResetCodeRequest(email: string, code: string) {
+  const { data } = await api.post<ApiSuccess<{ valid: boolean }>>('/auth/verify-reset-code', { email, code });
+  return data.data;
+}
+
+export async function resetPasswordRequest(email: string, code: string, password: string, passwordConfirmation: string) {
+  const { data } = await api.post<ApiSuccess<{ user: AuthUser }>>('/auth/reset-password', {
+    email,
+    code,
+    password,
+    password_confirmation: passwordConfirmation,
+  });
   return data.data;
 }
 
@@ -54,6 +83,7 @@ export function mapAuthUserToAppUser(u: AuthUser): User {
     avatar: u.avatar || undefined,
     role: u.role,
     points: u.points,
+    walletBalance: u.wallet_balance ?? 0,
     verified: u.verified,
   };
 }

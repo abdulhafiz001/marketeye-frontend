@@ -10,6 +10,7 @@ export interface User {
   avatar?: string;
   role?: string;
   points?: number;
+  walletBalance?: number;
   verified?: boolean;
 }
 

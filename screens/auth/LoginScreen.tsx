@@ -2,7 +2,7 @@
  * Login Screen
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -18,8 +18,9 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useStore } from '@/store/useStore';
 import { Colors, Spacing, Typography } from '@/constants/colors';
-import { loginRequest, mapAuthUserToAppUser } from '@/services/authApi';
+import { loginRequest, mapAuthUserToAppUser, googleLoginRequest } from '@/services/authApi';
 import { fetchMarketWatches } from '@/services/userApi';
+import { isGoogleConfigured, useGoogleAuthRequest } from '@/services/googleAuth';
 
 export default function LoginScreen() {
   const navigation = useNavigation();
@@ -31,6 +32,32 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const googleReady = isGoogleConfigured();
+  const [googleRequest, googleResponse, promptGoogle] = useGoogleAuthRequest();
+
+  useEffect(() => {
+    const run = async () => {
+      const idToken = googleResponse?.type === 'success' ? googleResponse.params?.id_token : null;
+      if (!idToken) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await googleLoginRequest(idToken);
+        setUser(mapAuthUserToAppUser(res.user));
+        try {
+          setMarketWatchlist(await fetchMarketWatches());
+        } catch {
+          setMarketWatchlist([]);
+        }
+        setAuthenticated(true);
+      } catch (e: any) {
+        setError(e?.response?.data?.message || e?.message || 'Google sign-in failed.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    run();
+  }, [googleResponse]);
 
   const handleLogin = async () => {
     if (!login.trim() || !password) return;
@@ -147,22 +174,19 @@ export default function LoginScreen() {
               <View style={styles.dividerLine} />
             </View>
 
-            <TouchableOpacity style={styles.socialButton}>
+            <TouchableOpacity
+              style={[styles.socialButton, (!googleReady || !googleRequest || loading) && { opacity: 0.5 }]}
+              disabled={!googleReady || !googleRequest || loading}
+              onPress={() => promptGoogle()}
+            >
               <MaterialCommunityIcons
                 name="google"
                 size={20}
                 color={Colors.text.primary}
               />
-              <Text style={styles.socialButtonText}>Continue with Google</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.socialButton}>
-              <MaterialCommunityIcons
-                name="apple"
-                size={20}
-                color={Colors.text.primary}
-              />
-              <Text style={styles.socialButtonText}>Continue with Apple</Text>
+              <Text style={styles.socialButtonText}>
+                {googleReady ? 'Continue with Google' : 'Google (set client ID in .env)'}
+              </Text>
             </TouchableOpacity>
 
             <View style={styles.signUpContainer}>

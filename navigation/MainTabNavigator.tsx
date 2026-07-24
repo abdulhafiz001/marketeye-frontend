@@ -18,6 +18,8 @@ import MarketDetailScreen from '../screens/main/MarketDetailScreen';
 import MarketScreen from '../screens/main/MarketScreen';
 import NotificationSettingsScreen from '../screens/main/NotificationSettingsScreen';
 import ProfileScreen from '../screens/main/ProfileScreen';
+import HelpSupportScreen from '../screens/main/HelpSupportScreen';
+import AboutAppScreen from '../screens/main/AboutAppScreen';
 import SubmitPriceScreen from '../screens/main/SubmitPriceScreen';
 
 const Tab = createBottomTabNavigator();
@@ -85,6 +87,16 @@ function ProfileStack() {
           headerStyle: { backgroundColor: Colors.primary.deepBlue },
           headerTintColor: Colors.primary.white,
         }}
+      />
+      <Stack.Screen
+        name="HelpSupport"
+        component={HelpSupportScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="AboutApp"
+        component={AboutAppScreen}
+        options={{ headerShown: false }}
       />
       <Stack.Screen
         name="SubmitPrice"

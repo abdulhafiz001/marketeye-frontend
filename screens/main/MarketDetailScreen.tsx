@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -21,9 +21,16 @@ export default function MarketDetailScreen() {
   const route = useRoute<any>();
   const marketId: number = route.params?.marketId;
   const marketName: string | undefined = route.params?.marketName;
+  const initialCategory = route.params?.categorySlug as string | undefined;
 
-  const [category, setCategory] = useState<string | undefined>(undefined);
+  const [category, setCategory] = useState<string | undefined>(initialCategory);
   const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    if (initialCategory !== undefined) {
+      setCategory(initialCategory);
+    }
+  }, [initialCategory]);
 
   const categoriesQ = useQuery({ queryKey: ['categories'], queryFn: fetchCategories, staleTime: 5 * 60 * 1000 });
   const pricesQ = useQuery({
@@ -38,6 +45,7 @@ export default function MarketDetailScreen() {
   const confidenceLabel = (r: MarketPriceRow) => {
     if (r.confidence_level === 'stale') return { text: 'Stale', icon: 'clock-alert-outline' as const, color: '#F59E0B' };
     if (r.confidence_level === 'low') return { text: 'Low confidence', icon: 'alert-circle-outline' as const, color: '#F97316' };
+    if (r.confidence_level === 'medium') return { text: 'Confident', icon: 'check-circle-outline' as const, color: '#2563EB' };
     return { text: 'High confidence', icon: 'check-decagram' as const, color: '#16A34A' };
   };
 
@@ -53,6 +61,12 @@ export default function MarketDetailScreen() {
           <Text style={styles.title}>{headerMarketName}</Text>
           <Text style={styles.sub}>{pricesQ.data?.market?.area || 'Abuja'}</Text>
         </View>
+        <TouchableOpacity
+          style={styles.clearMarketBtn}
+          onPress={() => navigation.navigate('MarketList')}
+        >
+          <Text style={styles.clearMarketText}>Clear</Text>
+        </TouchableOpacity>
       </View>
 
       {pricesQ.data?.market?.description ? (
@@ -162,6 +176,15 @@ const styles = StyleSheet.create({
   },
   title: { ...Typography.h2, color: '#111827', fontSize: 22 },
   sub: { color: '#6B7280', marginTop: 2 },
+  clearMarketBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  clearMarketText: { color: Colors.primary.deepBlue, fontWeight: '800', fontSize: 12 },
   desc: { paddingHorizontal: Spacing.lg, color: '#6B7280', marginBottom: Spacing.md },
   search: {
     flexDirection: 'row',

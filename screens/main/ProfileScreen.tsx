@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,15 +6,19 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  TextInput,
+  Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useStore } from '@/store/useStore';
 import { Colors, Spacing, Typography } from '@/constants/colors';
 import { logoutRequest } from '@/services/authApi';
 import { fetchMySubmissions } from '@/services/userApi';
+import { claimAirtime, fetchWallet } from '@/services/walletApi';
 
 // --- Types ---
 interface MenuItem {
@@ -28,6 +32,106 @@ interface MenuItem {
 interface MenuSection {
   title: string;
   items: MenuItem[];
+}
+
+function WalletCard() {
+  const queryClient = useQueryClient();
+  const user = useStore((s) => s.user);
+  const setUser = useStore((s) => s.setUser);
+  const [claimOpen, setClaimOpen] = useState(false);
+  const [phone, setPhone] = useState(user?.phone || '');
+
+  const walletQ = useQuery({
+    queryKey: ['wallet'],
+    queryFn: fetchWallet,
+  });
+
+  const claimM = useMutation({
+    mutationFn: () => claimAirtime(phone.trim()),
+    onSuccess: (data) => {
+      if (user) {
+        setUser({ ...user, walletBalance: data.wallet.balance });
+      }
+      queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      setClaimOpen(false);
+      Alert.alert('Claim submitted', 'An admin will send airtime to your number soon.');
+    },
+    onError: (e: any) => {
+      const msg =
+        e?.response?.data?.errors?.wallet?.[0] ||
+        e?.response?.data?.errors?.phone?.[0] ||
+        e?.response?.data?.message ||
+        'Could not claim airtime.';
+      Alert.alert('Claim failed', String(msg));
+    },
+  });
+
+  const w = walletQ.data?.wallet;
+  const balance = w?.balance ?? user?.walletBalance ?? 0;
+  const progress = w?.progress ?? Math.min(100, Math.round((balance / 200) * 100));
+  const canClaim = w?.can_claim ?? balance >= 200;
+
+  return (
+    <View style={styles.walletCard}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.pointsLabel}>Airtime wallet</Text>
+          <Text style={styles.pointsHint}>₦1 per verified submission · claim from ₦200</Text>
+        </View>
+        <Text style={styles.walletValue}>₦{(balance || 0).toLocaleString()}</Text>
+      </View>
+      <View style={styles.progressTrack}>
+        <View style={[styles.progressFill, { width: `${progress}%` as any }]} />
+      </View>
+      <Text style={styles.progressLabel}>
+        {canClaim ? 'Ready to claim' : `₦${Math.max(0, 200 - balance)} more to unlock claim`}
+      </Text>
+      <TouchableOpacity
+        style={[styles.claimBtn, !canClaim && styles.claimBtnDisabled]}
+        disabled={!canClaim}
+        onPress={() => setClaimOpen(true)}
+      >
+        <Text style={styles.claimBtnText}>Claim airtime</Text>
+      </TouchableOpacity>
+
+      {(walletQ.data?.claims || []).slice(0, 3).map((c) => (
+        <View key={String(c.id)} style={styles.claimHistoryRow}>
+          <Text style={styles.claimHistoryText}>₦{c.amount} → {c.phone}</Text>
+          <Text style={styles.claimHistoryStatus}>{c.status}</Text>
+        </View>
+      ))}
+
+      <Modal visible={claimOpen} transparent animationType="fade" onRequestClose={() => setClaimOpen(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Confirm phone for airtime</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={phone}
+              onChangeText={setPhone}
+              keyboardType="phone-pad"
+              placeholder="080XXXXXXXX"
+              placeholderTextColor="#9CA3AF"
+            />
+            <TouchableOpacity
+              style={styles.claimBtn}
+              onPress={() => claimM.mutate()}
+              disabled={claimM.isPending}
+            >
+              {claimM.isPending ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.claimBtnText}>Submit claim</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setClaimOpen(false)}>
+              <Text style={styles.modalCancel}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
 }
 
 export default function ProfileScreen() {
@@ -93,12 +197,14 @@ export default function ProfileScreen() {
           id: '4',
           title: 'Help & Support',
           icon: 'lifebuoy',
+          screen: 'HelpSupport',
           color: '#4CAF50', // Green
         },
         {
           id: '5',
           title: 'About App',
           icon: 'information',
+          screen: 'AboutApp',
           color: '#2196F3', // Blue
         },
       ],
@@ -147,10 +253,12 @@ export default function ProfileScreen() {
           <View style={styles.pointsCard}>
             <View style={{ flex: 1 }}>
               <Text style={styles.pointsLabel}>Community points</Text>
-              <Text style={styles.pointsHint}>Earned from accurate price submissions</Text>
+              <Text style={styles.pointsHint}>Reputation from submissions (leaderboard)</Text>
             </View>
             <Text style={styles.pointsValue}>{(user?.points ?? 0).toLocaleString()}</Text>
           </View>
+
+          {user ? <WalletCard /> : null}
         </View>
 
         {user ? (
@@ -357,6 +465,68 @@ const styles = StyleSheet.create({
   pointsLabel: { fontWeight: '900', color: '#111827' },
   pointsHint: { marginTop: 4, color: '#6B7280', fontSize: 12, fontWeight: '600' },
   pointsValue: { fontSize: 22, fontWeight: '900', color: Colors.primary.deepBlue },
+  walletCard: {
+    marginTop: Spacing.md,
+    width: '100%',
+    paddingHorizontal: Spacing.lg,
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingVertical: Spacing.md,
+  },
+  walletValue: { fontSize: 22, fontWeight: '900', color: Colors.primary.vibrantGreen },
+  progressTrack: {
+    marginTop: Spacing.md,
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: '#E5E7EB',
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: Colors.primary.vibrantGreen,
+    borderRadius: 999,
+  },
+  progressLabel: { marginTop: 8, color: '#6B7280', fontSize: 12, fontWeight: '600' },
+  claimBtn: {
+    marginTop: Spacing.md,
+    backgroundColor: Colors.primary.deepBlue,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  claimBtnDisabled: { opacity: 0.45 },
+  claimBtnText: { color: '#fff', fontWeight: '800' },
+  claimHistoryRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  claimHistoryText: { color: '#374151', fontSize: 12, fontWeight: '600' },
+  claimHistoryStatus: { color: '#6B7280', fontSize: 12, fontWeight: '700', textTransform: 'capitalize' },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+  },
+  modalTitle: { fontWeight: '900', fontSize: 16, color: '#111827', marginBottom: 12 },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 12,
+    color: '#111827',
+  },
+  modalCancel: { marginTop: 14, textAlign: 'center', color: '#6B7280', fontWeight: '700' },
   submissionsBox: {
     marginTop: Spacing.sm,
     backgroundColor: '#FFF',

@@ -243,7 +243,13 @@ export default function CommodityDetailScreen() {
 
           <TouchableOpacity
             style={styles.submitBtn}
-            onPress={() => navigation.navigate('SubmitPrice', { productId: product.id })}
+            onPress={() =>
+              navigation.navigate('SubmitPrice', {
+                productId: product.id,
+                marketId: marketId || undefined,
+                marketName: routeMarketName,
+              })
+            }
           >
             <Text style={styles.submitText}>Submit a price for this product</Text>
             <MaterialCommunityIcons name="arrow-right" size={20} color="#FFF" />

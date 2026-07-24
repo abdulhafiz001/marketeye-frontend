@@ -4,6 +4,7 @@
  */
 
 import React, { useEffect } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { CommonActions } from '@react-navigation/native';
 import { useStore } from '../store/useStore';
@@ -12,43 +13,59 @@ import AuthNavigator from './AuthNavigator';
 import MainTabNavigator from './MainTabNavigator';
 import AdminLoginScreen from '../screens/admin/AdminLoginScreen';
 import AdminWebViewScreen from '../screens/admin/AdminWebViewScreen';
+import { Colors } from '../constants/colors';
 
 const Stack = createStackNavigator();
 
 export default function AppNavigator({ navigationRef }: { navigationRef: React.RefObject<any> }) {
   const hasCompletedOnboarding = useStore((state) => state.hasCompletedOnboarding);
   const isAuthenticated = useStore((state) => state.isAuthenticated);
+  const prefsHydrated = useStore((state) => state.prefsHydrated);
 
-  // Determine initial route based on state
   const getInitialRoute = () => {
     if (!hasCompletedOnboarding) return 'Onboarding';
     if (!isAuthenticated) return 'Auth';
     return 'Main';
   };
 
-  // Navigate when auth state changes
   useEffect(() => {
-    if (navigationRef?.current && hasCompletedOnboarding) {
-      if (isAuthenticated) {
-        navigationRef.current.dispatch(
-          CommonActions.reset({
-            index: 0,
-            routes: [{ name: 'Main' }],
-          })
-        );
-      } else {
-        navigationRef.current.dispatch(
-          CommonActions.reset({
-            index: 0,
-            routes: [{ name: 'Auth' }],
-          })
-        );
-      }
+    if (!prefsHydrated || !navigationRef?.current || !hasCompletedOnboarding) return;
+
+    if (isAuthenticated) {
+      navigationRef.current.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: 'Main' }],
+        })
+      );
+    } else {
+      navigationRef.current.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [
+            {
+              name: 'Auth',
+              state: {
+                index: 0,
+                routes: [{ name: 'Login' }],
+              },
+            },
+          ],
+        })
+      );
     }
-  }, [isAuthenticated, hasCompletedOnboarding, navigationRef]);
+  }, [isAuthenticated, hasCompletedOnboarding, prefsHydrated, navigationRef]);
+
+  if (!prefsHydrated) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFF' }}>
+        <ActivityIndicator color={Colors.primary.deepBlue} />
+      </View>
+    );
+  }
 
   return (
-    <Stack.Navigator 
+    <Stack.Navigator
       screenOptions={{ headerShown: false }}
       initialRouteName={getInitialRoute()}
     >
@@ -68,4 +85,3 @@ export default function AppNavigator({ navigationRef }: { navigationRef: React.R
     </Stack.Navigator>
   );
 }
-

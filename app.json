@@ -1,17 +1,19 @@
 {
   "expo": {
     "name": "Market Eye",
-    "slug": "Market Eye",
+    "slug": "market-eye",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/naija-price-img.png",
-    "scheme": "Marketeye",
+    "scheme": "marketeye",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.marketeye.app"
     },
     "android": {
+      "package": "com.marketeye.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/naija-price-img.png",
@@ -19,7 +21,11 @@
         "monochromeImage": "./assets/images/naija-price-img.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "output": "static",
@@ -46,7 +52,13 @@
       ]
     ],
     "extra": {
-      "apiUrl": "http://127.0.0.1:8000/api/v1"
+      "apiUrl": "http://127.0.0.1:8000/api/v1",
+      "googleWebClientId": "",
+      "googleAndroidClientId": "",
+      "googleIosClientId": "",
+      "eas": {
+        "projectId": "05f71ac9-5001-4077-b954-38187c2151cf"
+      }
     },
     "experiments": {
       "typedRoutes": true,

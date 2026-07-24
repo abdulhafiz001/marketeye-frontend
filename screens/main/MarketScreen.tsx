@@ -10,13 +10,16 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import { fetchMarkets } from '@/services/marketsApi';
 import { Colors, Spacing, Typography } from '@/constants/colors';
 
 export default function MarketScreen() {
   const navigation = useNavigation();
+  const route = useRoute<any>();
+  const categorySlug = route.params?.categorySlug as string | undefined;
+  const categoryName = route.params?.categoryName as string | undefined;
   const [searchQuery, setSearchQuery] = useState('');
 
   const marketsQ = useQuery({ queryKey: ['markets'], queryFn: fetchMarkets, staleTime: 5 * 60 * 1000 });
@@ -28,13 +31,26 @@ export default function MarketScreen() {
     return list.filter((m) => m.name.toLowerCase().includes(s) || (m.area || '').toLowerCase().includes(s));
   }, [marketsQ.data?.markets, searchQuery]);
 
+  const clearCategory = () => {
+    (navigation as any).setParams({ categorySlug: undefined, categoryName: undefined });
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>Abuja markets</Text>
-          <Text style={styles.headerSubtitle}>Tap a market to see live prices</Text>
+          <Text style={styles.headerSubtitle}>
+            {categoryName
+              ? `Pick a market to browse ${categoryName}`
+              : 'Tap a market to see live prices'}
+          </Text>
         </View>
+        {categorySlug ? (
+          <TouchableOpacity onPress={clearCategory} style={styles.clearBtn}>
+            <Text style={styles.clearText}>Clear</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       <View style={styles.searchBar}>
@@ -70,7 +86,13 @@ export default function MarketScreen() {
             <TouchableOpacity
               style={styles.card}
               activeOpacity={0.75}
-              onPress={() => (navigation as any).navigate('MarketDetail', { marketId: item.id, marketName: item.name })}
+              onPress={() =>
+                (navigation as any).navigate('MarketDetail', {
+                  marketId: item.id,
+                  marketName: item.name,
+                  categorySlug,
+                })
+              }
             >
               <View style={styles.iconContainer}>
                 <MaterialCommunityIcons name="storefront-outline" size={22} color={Colors.primary.deepBlue} />
@@ -120,6 +142,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
   },
+  clearBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  clearText: { color: Colors.primary.deepBlue, fontWeight: '800', fontSize: 12 },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',

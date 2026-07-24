@@ -10,7 +10,6 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -28,13 +27,13 @@ export default function DashboardScreen() {
   const navigation = useNavigation<any>();
   const user = useStore((state) => state.user);
   const marketWatchlist = useStore((state) => state.marketWatchlist);
+  const alerts = useStore((state) => state.alerts);
   const notifications = useStore((state) => state.notifications);
   const unreadBellCount = notifications.filter((n) => !n.read).length;
+  const activePriceWatches = React.useMemo(() => alerts.filter((a) => a.isActive), [alerts]);
 
   const [selectedMarketId, setSelectedMarketId] = React.useState<number | 'all'>('all');
   const [search, setSearch] = React.useState('');
-
-  const logoTapRef = React.useRef({ count: 0, lastTs: 0 });
 
   const marketsQ = useQuery({ queryKey: ['markets'], queryFn: fetchMarkets, staleTime: 5 * 60 * 1000 });
   const categoriesQ = useQuery({ queryKey: ['categories'], queryFn: fetchCategories, staleTime: 5 * 60 * 1000 });
@@ -51,19 +50,6 @@ export default function DashboardScreen() {
     const ms = d1.getTime() - d0.getTime();
     return Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
   }, [lastUpdate]);
-
-  const onLogoPress = () => {
-    const now = Date.now();
-    if (now - logoTapRef.current.lastTs > 2000) {
-      logoTapRef.current.count = 0;
-    }
-    logoTapRef.current.lastTs = now;
-    logoTapRef.current.count += 1;
-    if (logoTapRef.current.count >= 6) {
-      logoTapRef.current.count = 0;
-      navigation.getParent()?.getParent()?.navigate('AdminLogin');
-    }
-  };
 
   const goMarket = (marketId: number, marketName: string) => {
     navigation.navigate('Markets' as never, {
@@ -101,10 +87,6 @@ export default function DashboardScreen() {
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View style={styles.headerTop}>
-            <TouchableOpacity activeOpacity={0.9} onPress={onLogoPress} style={styles.logoBtn} accessibilityLabel="Market Eye logo">
-              <Image source={require('@/assets/images/naija-price-img.png')} style={styles.logoImg} contentFit="contain" />
-            </TouchableOpacity>
-
             <View style={{ flex: 1 }}>
               <Text style={styles.greetingText}>
                 Hello, <Text style={styles.userName}>{user?.name?.split(' ')[0] || 'Trader'}</Text>
@@ -175,11 +157,21 @@ export default function DashboardScreen() {
         ) : null}
 
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Markets</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Markets</Text>
+            {selectedMarketId !== 'all' ? (
+              <TouchableOpacity onPress={() => setSelectedMarketId('all')}>
+                <Text style={styles.seeAllText}>Clear market</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
             <TouchableOpacity
               style={[styles.chip, selectedMarketId === 'all' && styles.chipActive]}
-              onPress={() => setSelectedMarketId('all')}
+              onPress={() => {
+                setSelectedMarketId('all');
+                navigation.navigate('Markets' as never, { screen: 'MarketList' } as never);
+              }}
             >
               <Text style={[styles.chipText, selectedMarketId === 'all' && styles.chipTextActive]}>All Markets</Text>
             </TouchableOpacity>
@@ -206,7 +198,9 @@ export default function DashboardScreen() {
         <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Categories</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Markets' as never)}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Markets' as never, { screen: 'MarketList' } as never)}
+            >
               <Text style={styles.seeAllText}>Browse</Text>
             </TouchableOpacity>
           </View>
@@ -219,12 +213,24 @@ export default function DashboardScreen() {
                 <TouchableOpacity
                   key={c.id}
                   style={styles.catCard}
-                  onPress={() =>
+                  onPress={() => {
+                    if (selectedMarketId === 'all') {
+                      navigation.navigate('Markets' as never, {
+                        screen: 'MarketList',
+                        params: { categorySlug: c.slug, categoryName: c.name },
+                      } as never);
+                      return;
+                    }
+                    const market = markets.find((m) => m.id === selectedMarketId);
                     navigation.navigate('Markets' as never, {
                       screen: 'MarketDetail',
-                      params: { marketId: selectedMarketId === 'all' ? markets[0]?.id : selectedMarketId, marketName: 'Market' },
-                    } as never)
-                  }
+                      params: {
+                        marketId: selectedMarketId,
+                        marketName: market?.name || 'Market',
+                        categorySlug: c.slug,
+                      },
+                    } as never);
+                  }}
                 >
                   <View style={styles.catIcon}>
                     <MaterialCommunityIcons
@@ -285,6 +291,47 @@ export default function DashboardScreen() {
             </View>
           )}
         </View>
+
+        {activePriceWatches.length ? (
+          <View style={styles.sectionContainer}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Price watches</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Alerts' as never)}>
+                <Text style={styles.seeAllText}>Manage</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.sectionHint}>Alerts when prices fall or rise past your target</Text>
+            <View style={{ gap: 10, marginTop: 10 }}>
+              {activePriceWatches.slice(0, 6).map((watch) => (
+                <TouchableOpacity
+                  key={watch.id}
+                  style={styles.watchRow}
+                  onPress={() =>
+                    navigation.navigate('CommodityDetail' as never, {
+                      productId: Number(watch.commodityId),
+                      marketId: watch.marketId,
+                      marketName: watch.marketName,
+                    } as never)
+                  }
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.trendName}>{watch.commodityName}</Text>
+                    <Text style={styles.trendUnit}>
+                      {watch.condition === 'below' ? 'Falls below' : 'Rises above'} ₦
+                      {watch.targetPrice.toLocaleString()}
+                      {watch.marketName ? ` • ${watch.marketName}` : ''}
+                    </Text>
+                  </View>
+                  <MaterialCommunityIcons
+                    name={watch.condition === 'below' ? 'trending-down' : 'trending-up'}
+                    size={20}
+                    color={watch.condition === 'below' ? '#16A34A' : '#DC2626'}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        ) : null}
 
         {marketWatchlist.length ? (
           <View style={styles.sectionContainer}>
@@ -354,17 +401,6 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
     gap: 12,
   },
-  logoBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoImg: { width: 34, height: 34 },
   greetingText: {
     ...Typography.h2,
     color: '#6B7280',

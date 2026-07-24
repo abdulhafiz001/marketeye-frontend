@@ -23,6 +23,7 @@ function schedulePersist(getState: () => AppState) {
         marketWatchlist: s.marketWatchlist,
         alerts: s.alerts,
         notifications: s.notifications,
+        hasCompletedOnboarding: s.hasCompletedOnboarding,
       })
     ).catch(() => {});
   }, 400);
@@ -34,6 +35,7 @@ interface AppState {
   isAuthenticated: boolean;
   authToken: string | null;
   hasCompletedOnboarding: boolean;
+  prefsHydrated: boolean;
   
   // Commodities
   commodities: Commodity[];
@@ -97,6 +99,7 @@ const store: ReturnType<typeof createSimpleStore<AppState>> = createSimpleStore<
   isAuthenticated: false,
   authToken: null,
   hasCompletedOnboarding: false,
+  prefsHydrated: false,
   commodities: [],
   watchlist: [],
   alerts: [],
@@ -248,19 +251,25 @@ export const setStoreState = (partial: Partial<AppState>) => store.setState(part
 export async function hydratePreferences(): Promise<void> {
   try {
     const raw = await AsyncStorage.getItem(PREFERENCES_KEY);
-    if (!raw) return;
+    if (!raw) {
+      setStoreState({ prefsHydrated: true });
+      return;
+    }
     const p = JSON.parse(raw) as {
       marketWatchlist?: MarketWatchItem[];
       alerts?: Alert[];
       notifications?: InboxNotification[];
+      hasCompletedOnboarding?: boolean;
     };
     setStoreState({
       marketWatchlist: Array.isArray(p.marketWatchlist) ? p.marketWatchlist : [],
       alerts: Array.isArray(p.alerts) ? p.alerts : [],
       notifications: Array.isArray(p.notifications) ? p.notifications : [],
+      hasCompletedOnboarding: Boolean(p.hasCompletedOnboarding),
+      prefsHydrated: true,
     });
   } catch {
-    // ignore malformed storage
+    setStoreState({ prefsHydrated: true });
   }
 }
 

@@ -2,7 +2,7 @@
  * Sign Up Screen
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -18,7 +18,9 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useStore } from '@/store/useStore';
 import { Colors, Spacing, Typography } from '@/constants/colors';
-import { mapAuthUserToAppUser, registerRequest } from '@/services/authApi';
+import { googleLoginRequest, mapAuthUserToAppUser, registerRequest } from '@/services/authApi';
+import { fetchMarketWatches } from '@/services/userApi';
+import { isGoogleConfigured, useGoogleAuthRequest } from '@/services/googleAuth';
 
 export default function SignUpScreen() {
   const navigation = useNavigation();
@@ -32,6 +34,32 @@ export default function SignUpScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const googleReady = isGoogleConfigured();
+  const [googleRequest, googleResponse, promptGoogle] = useGoogleAuthRequest();
+
+  useEffect(() => {
+    const run = async () => {
+      const idToken = googleResponse?.type === 'success' ? googleResponse.params?.id_token : null;
+      if (!idToken) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await googleLoginRequest(idToken);
+        setUser(mapAuthUserToAppUser(res.user));
+        try {
+          setMarketWatchlist(await fetchMarketWatches());
+        } catch {
+          setMarketWatchlist([]);
+        }
+        setAuthenticated(true);
+      } catch (e: any) {
+        setError(e?.response?.data?.message || e?.message || 'Google sign-in failed.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    run();
+  }, [googleResponse]);
 
   const handleSignUp = async () => {
     setError(null);
@@ -77,16 +105,6 @@ export default function SignUpScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-            >
-              <MaterialCommunityIcons
-                name="arrow-left"
-                size={24}
-                color={Colors.primary.deepBlue}
-              />
-            </TouchableOpacity>
             <Text style={styles.title}>Create Account</Text>
             <Text style={styles.subtitle}>
               Sign up to start tracking prices
@@ -200,27 +218,24 @@ export default function SignUpScreen() {
               <View style={styles.dividerLine} />
             </View>
 
-            <TouchableOpacity style={styles.socialButton}>
+            <TouchableOpacity
+              style={[styles.socialButton, (!googleReady || !googleRequest || loading) && { opacity: 0.5 }]}
+              disabled={!googleReady || !googleRequest || loading}
+              onPress={() => promptGoogle()}
+            >
               <MaterialCommunityIcons
                 name="google"
                 size={20}
                 color={Colors.text.primary}
               />
-              <Text style={styles.socialButtonText}>Continue with Google</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.socialButton}>
-              <MaterialCommunityIcons
-                name="apple"
-                size={20}
-                color={Colors.text.primary}
-              />
-              <Text style={styles.socialButtonText}>Continue with Apple</Text>
+              <Text style={styles.socialButtonText}>
+                {googleReady ? 'Continue with Google' : 'Google (set client ID in .env)'}
+              </Text>
             </TouchableOpacity>
 
             <View style={styles.loginContainer}>
               <Text style={styles.loginText}>Already have an account? </Text>
-              <TouchableOpacity onPress={() => navigation.goBack()}>
+              <TouchableOpacity onPress={() => navigation.navigate('Login' as never)}>
                 <Text style={styles.loginLink}>Sign In</Text>
               </TouchableOpacity>
             </View>
