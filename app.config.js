@@ -40,23 +40,19 @@ loadDotEnvFile();
 const googleServicesPath = path.join(__dirname, 'google-services.json');
 const hasGoogleServices = fs.existsSync(googleServicesPath);
 
-/** Owner's EAS project. Collaborators override via EXPO_PUBLIC_EAS_PROJECT_ID in `.env`. */
-const OWNER_EAS_PROJECT_ID = '05f71ac9-5001-4077-b954-38187c2151cf';
-
 /**
- * - unset → owner project id (you / Abdul)
- * - uuid → that collaborator's Expo project
- * - `new` / `-` → omit projectId so `eas init` can create a project on their account
+ * EAS project id comes ONLY from `.env` → EXPO_PUBLIC_EAS_PROJECT_ID.
+ * No hardcoded owner id in git (that blocked collaborators with "Entity not authorized").
+ *
+ * - unset / `new` / `-` → omit projectId → run `npx eas-cli init` to create your own
+ * - uuid → use that Expo project
  */
 function resolveEasProjectId() {
   const fromEnv = (process.env.EXPO_PUBLIC_EAS_PROJECT_ID || '').trim();
-  if (fromEnv === 'new' || fromEnv === '-') {
+  if (!fromEnv || fromEnv === 'new' || fromEnv === '-') {
     return undefined;
   }
-  if (fromEnv) {
-    return fromEnv;
-  }
-  return OWNER_EAS_PROJECT_ID;
+  return fromEnv;
 }
 
 const easProjectId = resolveEasProjectId();

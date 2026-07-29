@@ -89,40 +89,45 @@ npx eas-cli whoami   # must show YOUR username
 ### 3a. Create your own EAS project
 
 **What is `EXPO_PUBLIC_EAS_PROJECT_ID`?**  
-It is **not** from Expo or Firebase. It is a line **you type into your local `.env` file** so this app uses *your* Expo project instead of the owner’s hardcoded id (`05f71ac9-...` in `app.config.js`). If you skip it, every `eas` command tries the owner’s project → **Entity not authorized**.
+A line **you type into your local `.env`** (same folder as `package.json`). It is not from Expo/Firebase automatically. It tells EAS which Expo project is yours.
 
-1. Pull latest code, then open **`.env`** in the frontend root (same folder as `package.json`). Add this line:
+If `eas init` says `Project already linked (ID: 05f71ac9-...)`, the app config still has the **owner’s** id — pull latest (owner id was removed from git) and verify:
+
+```bash
+git pull
+npm run eas:which-project
+```
+
+You want: `Resolved extra.eas.projectId: (none — ok to run eas init)`.
+
+1. In `.env`:
 
 ```env
 EXPO_PUBLIC_EAS_PROJECT_ID=new
 ```
 
-(`new` means: don’t use the owner’s project — I’m about to create my own.)
-
-2. Confirm the config no longer shows the owner id:
+2. Confirm unlink:
 
 ```bash
-npx expo config --type public | findstr /i projectId
+npm run eas:which-project
 ```
 
-(You should see **no** `05f71ac9...`. On mac/linux use `grep -i projectId`.)
-
-3. Create a project on **your** Expo account:
+3. Create **your** project:
 
 ```bash
 npx eas-cli init
 ```
 
-- Choose **Create a new project** (not an existing owner project).
-- Pick any slug unique on your account.
+- **Create a new project** under your login (`beauteeanne` etc.).
+- If `eas init` edits `app.config.js` and inserts a `projectId`, copy that UUID into `.env` as below, then **undo** the `app.config.js` change (`git checkout -- app.config.js`) so you don’t commit your id.
 
-4. Copy the new project UUID from the terminal or [expo.dev](https://expo.dev) → your project → Project settings. Put it in `.env`:
+4. Save your uuid in `.env`:
 
 ```env
 EXPO_PUBLIC_EAS_PROJECT_ID=paste-your-uuid-here
 ```
 
-5. Only **then** run credentials / build.
+5. Then credentials / build.
 
 ### 3b. Upload FCM credentials on *your* EAS project
 
@@ -215,7 +220,8 @@ Or approve a submission that crosses an alert target (queue worker must be runni
 ## Common issues
 
 - **`npx eas login` → could not determine executable** → use `npx eas-cli login` (not `eas`). Pull latest main so `eas-cli` is in `devDependencies`, then reinstall.  
-- **Entity not authorized / AppEntity[...]** → you are hitting the **owner’s** EAS project. Create your own with `eas init`, set `EXPO_PUBLIC_EAS_PROJECT_ID` in `.env`, then retry.  
+- **Entity not authorized / Project already linked (05f71ac9-...)** → still on the owner project. Run `git pull`, set `EXPO_PUBLIC_EAS_PROJECT_ID=new` in `.env`, run `npm run eas:which-project` (must say `none`), then `npx eas-cli init`.  
+- **Emergency (no pull yet):** in `app.config.js` search for `05f71ac9` or `projectId` and delete that whole `eas: { projectId: ... }` block, save, run `npx eas-cli init`.  
 - **Node EBADENGINE / 22.9.0** → upgrade to Node **22.13+** or **20.19+**.  
 - **Using Expo Go** → remote push won’t work. Use the EAS APK.  
 - **`localhost` API on phone** → phone can’t see your PC. Use LAN IP or deployed backend URL.  
