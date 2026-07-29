@@ -1,16 +1,52 @@
 const fs = require('fs');
 const path = require('path');
 
+/**
+ * eas-cli does NOT load `.env` by itself. Without this, EXPO_PUBLIC_* is empty
+ * during `eas credentials` / `eas build` and the owner projectId always wins.
+ */
+function loadDotEnvFile() {
+  const envPath = path.join(__dirname, '.env');
+  if (!fs.existsSync(envPath)) {
+    return;
+  }
+  const text = fs.readFileSync(envPath, 'utf8');
+  for (const line of text.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) {
+      continue;
+    }
+    const eq = trimmed.indexOf('=');
+    if (eq <= 0) {
+      continue;
+    }
+    const key = trimmed.slice(0, eq).trim();
+    let value = trimmed.slice(eq + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    // Do not override vars already set in the shell.
+    if (process.env[key] === undefined) {
+      process.env[key] = value;
+    }
+  }
+}
+
+loadDotEnvFile();
+
 const googleServicesPath = path.join(__dirname, 'google-services.json');
 const hasGoogleServices = fs.existsSync(googleServicesPath);
 
-/** Owner's EAS project. Collaborators override via EXPO_PUBLIC_EAS_PROJECT_ID. */
+/** Owner's EAS project. Collaborators override via EXPO_PUBLIC_EAS_PROJECT_ID in `.env`. */
 const OWNER_EAS_PROJECT_ID = '05f71ac9-5001-4077-b954-38187c2151cf';
 
 /**
- * - unset → owner project id
- * - uuid → that project
- * - `new` / `-` → omit projectId so `eas init` can create a project on the logged-in account
+ * - unset → owner project id (you / Abdul)
+ * - uuid → that collaborator's Expo project
+ * - `new` / `-` → omit projectId so `eas init` can create a project on their account
  */
 function resolveEasProjectId() {
   const fromEnv = (process.env.EXPO_PUBLIC_EAS_PROJECT_ID || '').trim();
