@@ -1,2 +1,9 @@
+# Single-package app (not a monorepo). Required so pnpm CI/v9 doesn't fail with
+# "packages field missing or empty" when this file also holds build approvals.
+packages:
+  - '.'
+
 allowBuilds:
+  # Optional native optional dep (macOS/Solaris); not needed for this app/CI.
+  dtrace-provider: false
   unrs-resolver: true

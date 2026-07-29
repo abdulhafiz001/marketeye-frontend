@@ -18,6 +18,9 @@ Send this file (or copy the steps below) to teammates.
 
 ## 1. Clone & install
 
+**Node version:** use **Node 20.19+** or **22.13+** (not 22.9.0).  
+Check with `node -v`. Upgrade via [nodejs.org](https://nodejs.org/) or `nvm install 22`.
+
 ```bash
 git clone <REPO_URL>
 cd marketeye-frontend
@@ -76,11 +79,22 @@ Confirm the package inside the file is:
 
 If the owner already uploaded FCM V1 credentials to the shared Expo project, skip to step 4.
 
-Otherwise, from `marketeye-frontend`:
+`npx eas` **does not work** — the package name is `eas-cli`. After `npm install` / `pnpm install`, use one of:
 
 ```bash
-npx eas login
-npx eas credentials
+# Recommended (uses local eas-cli from node_modules)
+npx eas-cli login
+# or
+pnpm exec eas login
+# or
+npm run eas:login
+```
+
+Then credentials:
+
+```bash
+npx eas-cli credentials
+# or: pnpm exec eas credentials
 ```
 
 Then:
@@ -100,7 +114,9 @@ Web UI alternative: [expo.dev](https://expo.dev) → project → Credentials →
 
 ```bash
 cd marketeye-frontend
-npx eas build --profile development --platform android
+npx eas-cli build --profile development --platform android
+# or: npm run eas:build:dev
+# or: pnpm exec eas build --profile development --platform android
 ```
 
 When the build finishes:
@@ -164,6 +180,8 @@ Or approve a submission that crosses an alert target (queue worker must be runni
 
 ## Common issues
 
+- **`npx eas login` → could not determine executable** → use `npx eas-cli login` (not `eas`). Pull latest main so `eas-cli` is in `devDependencies`, then reinstall.  
+- **Node EBADENGINE / 22.9.0** → upgrade to Node **22.13+** or **20.19+**.  
 - **Using Expo Go** → remote push won’t work. Use the EAS APK.  
 - **`localhost` API on phone** → phone can’t see your PC. Use LAN IP or deployed backend URL.  
 - **No push after alert** → backend needs Firebase service account mounted + `php artisan queue:work`.  
