@@ -4,6 +4,27 @@ const path = require('path');
 const googleServicesPath = path.join(__dirname, 'google-services.json');
 const hasGoogleServices = fs.existsSync(googleServicesPath);
 
+/** Owner's EAS project. Collaborators override via EXPO_PUBLIC_EAS_PROJECT_ID. */
+const OWNER_EAS_PROJECT_ID = '05f71ac9-5001-4077-b954-38187c2151cf';
+
+/**
+ * - unset → owner project id
+ * - uuid → that project
+ * - `new` / `-` → omit projectId so `eas init` can create a project on the logged-in account
+ */
+function resolveEasProjectId() {
+  const fromEnv = (process.env.EXPO_PUBLIC_EAS_PROJECT_ID || '').trim();
+  if (fromEnv === 'new' || fromEnv === '-') {
+    return undefined;
+  }
+  if (fromEnv) {
+    return fromEnv;
+  }
+  return OWNER_EAS_PROJECT_ID;
+}
+
+const easProjectId = resolveEasProjectId();
+
 /** @type {import('expo/config').ExpoConfig} */
 const config = {
   name: 'Market Eye',
@@ -75,9 +96,13 @@ const config = {
     googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '',
     googleAndroidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '',
     googleIosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '',
-    eas: {
-      projectId: '05f71ac9-5001-4077-b954-38187c2151cf',
-    },
+    ...(easProjectId
+      ? {
+          eas: {
+            projectId: easProjectId,
+          },
+        }
+      : {}),
   },
   experiments: {
     typedRoutes: true,

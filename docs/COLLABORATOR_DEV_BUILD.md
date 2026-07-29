@@ -75,38 +75,64 @@ Confirm the package inside the file is:
 
 ---
 
-## 3. Expo login + FCM credentials on EAS (Android push)
+## 3. Your own Expo account (recommended for collaborators)
 
-If the owner already uploaded FCM V1 credentials to the shared Expo project, skip to step 4.
+Do **not** use the owner’s EAS project. Create builds under **your** Expo account so credentials and billing stay yours.
 
-`npx eas` **does not work** — the package name is `eas-cli`. After `npm install` / `pnpm install`, use one of:
+`npx eas` does not work — use `eas-cli`:
 
 ```bash
-# Recommended (uses local eas-cli from node_modules)
 npx eas-cli login
-# or
-pnpm exec eas login
-# or
-npm run eas:login
+npx eas-cli whoami   # must show YOUR username
 ```
 
-Then credentials:
+### 3a. Create your own EAS project
+
+The repo defaults to the owner’s `projectId` (that’s why you saw **Entity not authorized**). Use your own:
+
+1. In `.env`:
+
+```env
+EXPO_PUBLIC_EAS_PROJECT_ID=new
+```
+
+(`new` unlinks the owner’s project so `eas init` can create yours.)
+
+2. Create a project on **your** Expo account:
+
+```bash
+npx eas-cli init
+```
+
+- Choose **Create a new project** (not the owner’s existing one).
+- Pick any slug unique on your account.
+
+3. Copy the new project UUID (terminal output, or [expo.dev](https://expo.dev) → your project → Project settings).
+
+4. Replace in `.env` (do not commit):
+
+```env
+EXPO_PUBLIC_EAS_PROJECT_ID=your-new-uuid-here
+```
+
+5. Then credentials / build as below.
+
+### 3b. Upload FCM credentials on *your* EAS project
+
+You still need the same Firebase Android app as the backend (`google-services.json` for `com.marketeye.app`) so server push can reach your device. Upload the FCM V1 service account JSON **to your EAS project**:
 
 ```bash
 npx eas-cli credentials
-# or: pnpm exec eas credentials
 ```
 
-Then:
-
 1. **Android**  
-2. Profile: **development** (or production — upload for both if unsure)  
-3. **Google Service Account → FCM V1 service account key**  
-4. Upload the Firebase service-account JSON the owner gave you  
+2. Profile: **development** (upload for production too if you use it)  
+3. **Google Service Account → FCM V1**  
+4. Upload the Firebase service-account JSON the owner shared privately  
 
-EAS project id (already in app config): `05f71ac9-5001-4077-b954-38187c2151cf`
+Web UI: [expo.dev](https://expo.dev) → **your** project → Credentials → Android → `com.marketeye.app` → FCM V1.
 
-Web UI alternative: [expo.dev](https://expo.dev) → project → Credentials → Android → `com.marketeye.app` → FCM V1.
+**Note:** Expo/EAS is yours; Firebase can still be the shared Market Eye Firebase project so the Laravel backend can push to you. Fully separate Firebase is only needed if you also run your own backend.
 
 ---
 
@@ -170,7 +196,8 @@ Or approve a submission that crosses an alert target (queue worker must be runni
 |------|--------|
 | `pnpm install` + `.env` with API URL | ☐ |
 | `google-services.json` in frontend root | ☐ |
-| FCM V1 key on EAS (shared project) | ☐ |
+| Own EAS project + `EXPO_PUBLIC_EAS_PROJECT_ID` in `.env` | ☐ |
+| FCM V1 key on **your** EAS project | ☐ |
 | `eas build --profile development --platform android` | ☐ |
 | APK installed on real device | ☐ |
 | `npx expo start --dev-client` | ☐ |
@@ -181,6 +208,7 @@ Or approve a submission that crosses an alert target (queue worker must be runni
 ## Common issues
 
 - **`npx eas login` → could not determine executable** → use `npx eas-cli login` (not `eas`). Pull latest main so `eas-cli` is in `devDependencies`, then reinstall.  
+- **Entity not authorized / AppEntity[...]** → you are hitting the **owner’s** EAS project. Create your own with `eas init`, set `EXPO_PUBLIC_EAS_PROJECT_ID` in `.env`, then retry.  
 - **Node EBADENGINE / 22.9.0** → upgrade to Node **22.13+** or **20.19+**.  
 - **Using Expo Go** → remote push won’t work. Use the EAS APK.  
 - **`localhost` API on phone** → phone can’t see your PC. Use LAN IP or deployed backend URL.  
