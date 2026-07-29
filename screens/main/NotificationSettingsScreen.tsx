@@ -19,23 +19,46 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 
-import { useStore, getStoreState } from '@/store/useStore';
+import { useStore, getStoreState, setStoreState } from '@/store/useStore';
 import { Colors, Spacing, Typography } from '@/constants/colors';
 import { fetchProducts, fetchProductDetail } from '@/services/catalogApi';
-import { requestDeviceNotificationPermission } from '@/services/deviceNotifications';
+import {
+  createServerAlert,
+  deleteServerAlert,
+  fetchServerAlerts,
+  updateServerAlert,
+} from '@/services/alertsApi';
+import {
+  requestDeviceNotificationPermission,
+  syncExpoPushTokenWithServer,
+} from '@/services/deviceNotifications';
 import type { Alert as PriceAlertRule } from '@/types';
 
 export default function NotificationSettingsScreen() {
   const alertsEnabled = useStore((state) => state.alertsEnabled);
   const alerts = useStore((state) => state.alerts);
+  const isAuthenticated = useStore((state) => state.isAuthenticated);
   const setAlertsEnabled = useStore((state) => state.setAlertsEnabled);
   const toggleAlert = useStore((state) => state.toggleAlert);
   const removeAlert = useStore((state) => state.removeAlert);
 
   const [priceAlerts, setPriceAlerts] = React.useState(true);
-  const [forecastUpdates, setForecastUpdates] = React.useState(true);
+  const [crowdTips, setCrowdTips] = React.useState(true);
   const [marketNews, setMarketNews] = React.useState(false);
   const [weeklyDigest, setWeeklyDigest] = React.useState(true);
+
+  React.useEffect(() => {
+    if (!isAuthenticated) return;
+    (async () => {
+      try {
+        const serverAlerts = await fetchServerAlerts();
+        setStoreState({ alerts: serverAlerts });
+        await syncExpoPushTokenWithServer();
+      } catch {
+        // Keep local cache if sync fails.
+      }
+    })();
+  }, [isAuthenticated]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -88,20 +111,49 @@ export default function NotificationSettingsScreen() {
       productDetailQ.data?.markets.find((row) => row.market.id === selectedMarketId) ?? selectedMarketRow;
     if (!product || !marketRow || !targetPrice.trim() || Number.isNaN(parseFloat(targetPrice))) return;
 
-    const newRule: PriceAlertRule = {
-      id: `rule:${product.id}:${marketRow.market.id}:${Date.now()}`,
-      commodityId: String(product.id),
-      commodityName: product.name,
-      marketId: marketRow.market.id,
-      marketName: marketRow.market.name,
-      condition: alertCondition,
-      targetPrice: parseFloat(targetPrice),
-      isActive: true,
-      createdAt: new Date().toISOString(),
-      lastKnownPrice: estimatePrice !== null ? estimatePrice : undefined,
-    };
     await requestDeviceNotificationPermission();
-    getStoreState().addAlert(newRule);
+    await syncExpoPushTokenWithServer();
+
+    try {
+      if (isAuthenticated) {
+        const created = await createServerAlert({
+          product_id: product.id,
+          market_id: marketRow.market.id,
+          target_price: parseFloat(targetPrice),
+          condition: alertCondition,
+        });
+        getStoreState().addAlert({
+          ...created,
+          lastKnownPrice: estimatePrice !== null ? estimatePrice : created.lastKnownPrice,
+        });
+      } else {
+        getStoreState().addAlert({
+          id: `rule:${product.id}:${marketRow.market.id}:${Date.now()}`,
+          commodityId: String(product.id),
+          commodityName: product.name,
+          marketId: marketRow.market.id,
+          marketName: marketRow.market.name,
+          condition: alertCondition,
+          targetPrice: parseFloat(targetPrice),
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          lastKnownPrice: estimatePrice !== null ? estimatePrice : undefined,
+        });
+      }
+    } catch {
+      getStoreState().addAlert({
+        id: `rule:${product.id}:${marketRow.market.id}:${Date.now()}`,
+        commodityId: String(product.id),
+        commodityName: product.name,
+        marketId: marketRow.market.id,
+        marketName: marketRow.market.name,
+        condition: alertCondition,
+        targetPrice: parseFloat(targetPrice),
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        lastKnownPrice: estimatePrice !== null ? estimatePrice : undefined,
+      });
+    }
     setModalOpen(false);
   };
 
@@ -126,11 +178,32 @@ export default function NotificationSettingsScreen() {
         <View style={{ alignItems: 'flex-end', gap: 8 }}>
           <Switch
             value={item.isActive}
-            onValueChange={() => toggleAlert(item.id)}
+            onValueChange={async () => {
+              toggleAlert(item.id);
+              if (isAuthenticated && /^\d+$/.test(item.id)) {
+                try {
+                  await updateServerAlert(item.id, { is_active: !item.isActive });
+                } catch {
+                  toggleAlert(item.id);
+                }
+              }
+            }}
             trackColor={{ false: Colors.secondary.lightGray, true: Colors.primary.vibrantGreen }}
             thumbColor={Colors.primary.white}
           />
-          <TouchableOpacity onPress={() => removeAlert(item.id)} hitSlop={8}>
+          <TouchableOpacity
+            onPress={async () => {
+              removeAlert(item.id);
+              if (isAuthenticated && /^\d+$/.test(item.id)) {
+                try {
+                  await deleteServerAlert(item.id);
+                } catch {
+                  getStoreState().addAlert(item);
+                }
+              }
+            }}
+            hitSlop={8}
+          >
             <MaterialCommunityIcons name="trash-can-outline" size={20} color={Colors.status.error} />
           </TouchableOpacity>
         </View>
@@ -164,12 +237,12 @@ export default function NotificationSettingsScreen() {
 
           <View style={styles.settingItem}>
             <View style={styles.settingLeft}>
-              <Text style={styles.settingTitle}>Forecast tips</Text>
-              <Text style={styles.settingDescription}>Gentle notes when trends look interesting.</Text>
+              <Text style={styles.settingTitle}>Crowd updates</Text>
+              <Text style={styles.settingDescription}>Notes when verified community prices move.</Text>
             </View>
             <Switch
-              value={forecastUpdates}
-              onValueChange={setForecastUpdates}
+              value={crowdTips}
+              onValueChange={setCrowdTips}
               trackColor={{ false: Colors.secondary.lightGray, true: Colors.primary.vibrantGreen }}
               thumbColor={Colors.primary.white}
             />

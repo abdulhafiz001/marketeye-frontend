@@ -40,8 +40,8 @@ export default function CommodityDetailScreen() {
   const isAuthenticated = useStore((state) => state.isAuthenticated);
 
   const productQ = useQuery({
-    queryKey: ['product-detail', productId],
-    queryFn: () => fetchProductDetail(productId),
+    queryKey: ['product-detail', productId, marketId],
+    queryFn: () => fetchProductDetail(productId, marketId),
     enabled: Number.isFinite(productId) && productId > 0,
   });
 
@@ -55,9 +55,15 @@ export default function CommodityDetailScreen() {
   const watchId = marketId ? `${marketId}:${productId}` : null;
   const watched = watchId ? marketWatchlist.find((item) => item.id === watchId) : null;
   const history = data?.history || [];
+  const priceChanges = data?.price_changes || [];
   const chartValues = history.length ? history.map((point) => point.avg_price) : [0];
   const chartLabels = history.length
-    ? history.map((point, index) => (index % 5 === 0 ? new Date(point.date).getDate().toString() : ''))
+    ? history.map((point, index) => {
+        const d = new Date(point.date);
+        return index % Math.max(1, Math.floor(history.length / 5)) === 0
+          ? `${d.getDate()}/${d.getMonth() + 1}`
+          : '';
+      })
     : [''];
 
   React.useEffect(() => {
@@ -186,8 +192,10 @@ export default function CommodityDetailScreen() {
 
           <View style={styles.card}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Last 30 days</Text>
-              <Text style={styles.sectionSub}>Average price</Text>
+              <Text style={styles.sectionTitle}>Price history</Text>
+              <Text style={styles.sectionSub}>
+                {marketId ? focusMarketName || 'Selected market' : 'All markets avg'}
+              </Text>
             </View>
             {history.length ? (
               <LineChart
@@ -219,6 +227,54 @@ export default function CommodityDetailScreen() {
           </View>
 
           <View style={styles.card}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>When prices changed</Text>
+              <Text style={styles.sectionSub}>Date-stamped updates</Text>
+            </View>
+            {priceChanges.length ? (
+              priceChanges.slice(0, 12).map((change) => {
+                const up = change.direction === 'up';
+                const down = change.direction === 'down';
+                return (
+                  <View key={`${change.date}-${change.price}`} style={styles.changeRow}>
+                    <View
+                      style={[
+                        styles.changeDot,
+                        up && styles.changeDotUp,
+                        down && styles.changeDotDown,
+                      ]}
+                    />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.changeDate}>{change.label}</Text>
+                      <Text style={styles.muted}>{change.note}</Text>
+                      {change.previous_price != null ? (
+                        <Text style={styles.muted}>
+                          Was {formatNaira(change.previous_price)} → now {formatNaira(change.price)}
+                        </Text>
+                      ) : (
+                        <Text style={styles.muted}>Recorded at {formatNaira(change.price)}</Text>
+                      )}
+                    </View>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={styles.marketPrice}>{formatNaira(change.price)}</Text>
+                      {change.change_percent != null ? (
+                        <Text style={{ color: up ? '#DC2626' : '#16A34A', fontWeight: '900', fontSize: 12 }}>
+                          {up ? '+' : ''}
+                          {change.change_percent}%
+                        </Text>
+                      ) : null}
+                    </View>
+                  </View>
+                );
+              })
+            ) : (
+              <Text style={styles.muted}>
+                Price changes appear here with the date once verified submissions update the market.
+              </Text>
+            )}
+          </View>
+
+          <View style={styles.card}>
             <Text style={styles.sectionTitle}>Market prices</Text>
             {data.markets.length ? (
               data.markets.map((row, index) => (
@@ -228,7 +284,12 @@ export default function CommodityDetailScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.marketName}>{row.market.name}</Text>
-                    <Text style={styles.muted}>{row.market.area || 'Abuja'}</Text>
+                    <Text style={styles.muted}>
+                      {row.market.area || 'Abuja'}
+                      {row.as_of || row.snapshot_date
+                        ? ` · as of ${row.as_of || row.snapshot_date}`
+                        : ''}
+                    </Text>
                   </View>
                   <View style={styles.marketPriceBox}>
                     <Text style={styles.marketPrice}>{formatNaira(row.avg_price)}</Text>
@@ -318,6 +379,24 @@ const styles = StyleSheet.create({
   sectionTitle: { color: '#111827', fontSize: 18, fontWeight: '900' },
   sectionSub: { color: '#6B7280', fontSize: 12, fontWeight: '800' },
   chart: { borderRadius: 16, marginLeft: -10 },
+  changeRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  changeDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginTop: 5,
+    backgroundColor: Colors.primary.deepBlue,
+  },
+  changeDotUp: { backgroundColor: '#DC2626' },
+  changeDotDown: { backgroundColor: '#16A34A' },
+  changeDate: { color: '#111827', fontWeight: '900', marginBottom: 2 },
   marketRow: {
     flexDirection: 'row',
     alignItems: 'center',

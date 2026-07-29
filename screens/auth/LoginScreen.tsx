@@ -14,13 +14,15 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useStore } from '@/store/useStore';
 import { Colors, Spacing, Typography } from '@/constants/colors';
-import { loginRequest, mapAuthUserToAppUser, googleLoginRequest } from '@/services/authApi';
+import { loginRequest, mapAuthUserToAppUser } from '@/services/authApi';
 import { fetchMarketWatches } from '@/services/userApi';
-import { isGoogleConfigured, useGoogleAuthRequest } from '@/services/googleAuth';
+
+const REMEMBER_LOGIN_KEY = 'market-eye.remember-login.v1';
 
 export default function LoginScreen() {
   const navigation = useNavigation();
@@ -30,34 +32,28 @@ export default function LoginScreen() {
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const googleReady = isGoogleConfigured();
-  const [googleRequest, googleResponse, promptGoogle] = useGoogleAuthRequest();
 
   useEffect(() => {
-    const run = async () => {
-      const idToken = googleResponse?.type === 'success' ? googleResponse.params?.id_token : null;
-      if (!idToken) return;
-      setLoading(true);
-      setError(null);
+    let cancelled = false;
+    (async () => {
       try {
-        const res = await googleLoginRequest(idToken);
-        setUser(mapAuthUserToAppUser(res.user));
-        try {
-          setMarketWatchlist(await fetchMarketWatches());
-        } catch {
-          setMarketWatchlist([]);
-        }
-        setAuthenticated(true);
-      } catch (e: any) {
-        setError(e?.response?.data?.message || e?.message || 'Google sign-in failed.');
-      } finally {
-        setLoading(false);
+        const raw = await AsyncStorage.getItem(REMEMBER_LOGIN_KEY);
+        if (!raw || cancelled) return;
+        const saved = JSON.parse(raw) as { login?: string; password?: string };
+        if (saved.login) setLogin(saved.login);
+        if (saved.password) setPassword(saved.password);
+        setRememberMe(true);
+      } catch {
+        // ignore corrupt storage
       }
+    })();
+    return () => {
+      cancelled = true;
     };
-    run();
-  }, [googleResponse]);
+  }, []);
 
   const handleLogin = async () => {
     if (!login.trim() || !password) return;
@@ -65,6 +61,14 @@ export default function LoginScreen() {
     setError(null);
     try {
       const res = await loginRequest(login.trim(), password);
+      if (rememberMe) {
+        await AsyncStorage.setItem(
+          REMEMBER_LOGIN_KEY,
+          JSON.stringify({ login: login.trim(), password })
+        );
+      } else {
+        await AsyncStorage.removeItem(REMEMBER_LOGIN_KEY);
+      }
       setUser(mapAuthUserToAppUser(res.user));
       try {
         setMarketWatchlist(await fetchMarketWatches());
@@ -153,12 +157,24 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity
-              style={styles.forgotPassword}
-              onPress={() => navigation.navigate('ForgotPassword' as never)}
-            >
-              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-            </TouchableOpacity>
+            <View style={styles.rowBetween}>
+              <TouchableOpacity
+                style={styles.rememberRow}
+                onPress={() => setRememberMe((v) => !v)}
+                activeOpacity={0.8}
+              >
+                <MaterialCommunityIcons
+                  name={rememberMe ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                  size={22}
+                  color={rememberMe ? Colors.primary.deepBlue : Colors.text.secondary}
+                />
+                <Text style={styles.rememberText}>Remember me</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword' as never)}>
+                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+              </TouchableOpacity>
+            </View>
 
             <TouchableOpacity
               style={[styles.loginButton, (!login.trim() || !password || loading) && styles.loginButtonDisabled]}
@@ -166,27 +182,6 @@ export default function LoginScreen() {
               disabled={!login.trim() || !password || loading}
             >
               <Text style={styles.loginButtonText}>{loading ? 'Signing in…' : 'Sign In'}</Text>
-            </TouchableOpacity>
-
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>OR</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            <TouchableOpacity
-              style={[styles.socialButton, (!googleReady || !googleRequest || loading) && { opacity: 0.5 }]}
-              disabled={!googleReady || !googleRequest || loading}
-              onPress={() => promptGoogle()}
-            >
-              <MaterialCommunityIcons
-                name="google"
-                size={20}
-                color={Colors.text.primary}
-              />
-              <Text style={styles.socialButtonText}>
-                {googleReady ? 'Continue with Google' : 'Google (set client ID in .env)'}
-              </Text>
             </TouchableOpacity>
 
             <View style={styles.signUpContainer}>
@@ -268,9 +263,21 @@ const styles = StyleSheet.create({
   eyeIcon: {
     padding: Spacing.xs,
   },
-  forgotPassword: {
-    alignSelf: 'flex-end',
+  rowBetween: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: Spacing.lg,
+  },
+  rememberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  rememberText: {
+    ...Typography.caption,
+    color: Colors.text.primary,
+    fontWeight: '600',
   },
   forgotPasswordText: {
     ...Typography.caption,
@@ -291,37 +298,6 @@ const styles = StyleSheet.create({
     ...Typography.body,
     color: Colors.primary.white,
     fontWeight: '600',
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: Spacing.lg,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: Colors.secondary.lightGray,
-  },
-  dividerText: {
-    ...Typography.caption,
-    color: Colors.text.secondary,
-    marginHorizontal: Spacing.md,
-  },
-  socialButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary.white,
-    borderRadius: 12,
-    paddingVertical: Spacing.md,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.secondary.lightGray,
-    gap: Spacing.sm,
-  },
-  socialButtonText: {
-    ...Typography.body,
-    color: Colors.text.primary,
   },
   signUpContainer: {
     flexDirection: 'row',

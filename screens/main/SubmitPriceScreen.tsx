@@ -15,9 +15,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useMutation, useQuery } from '@tanstack/react-query';
+import NetInfo from '@react-native-community/netinfo';
 import { fetchMarkets } from '@/services/marketsApi';
 import { fetchProducts } from '@/services/catalogApi';
 import { submitPrice } from '@/services/userApi';
+import {
+  enqueueOfflineSubmission,
+  flushOfflineQueue,
+  getOfflineQueueCount,
+  subscribeOfflineQueue,
+} from '@/services/offlineQueue';
 import { useStore } from '@/store/useStore';
 import { Colors, Spacing, Typography } from '@/constants/colors';
 
@@ -41,7 +48,14 @@ export default function SubmitPriceScreen() {
   const [notes, setNotes] = useState('');
   const [q, setQ] = useState('');
   const [success, setSuccess] = useState(false);
+  const [queuedOffline, setQueuedOffline] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
   const scale = React.useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    void getOfflineQueueCount().then(setPendingCount);
+    return subscribeOfflineQueue(setPendingCount);
+  }, []);
 
   useEffect(() => {
     if (route.params?.productId != null) {
@@ -85,21 +99,51 @@ export default function SubmitPriceScreen() {
       if (!Number.isFinite(qty) || qty <= 0) throw new Error('Enter a valid quantity');
       const unit = quantityUnit === 'custom' ? customUnit.trim() : quantityUnit;
       if (!unit) throw new Error('Choose the quantity unit');
-      return submitPrice({
+
+      const payload = {
         market_id: marketId,
         product_id: productId,
         price: p,
         quantity_value: qty,
         quantity_unit: unit,
         notes: notes.trim() || undefined,
-      });
+      };
+
+      const net = await NetInfo.fetch();
+      if (!net.isConnected) {
+        await enqueueOfflineSubmission({
+          ...payload,
+          product_name: selectedProduct?.name,
+          market_name: selectedMarket?.name,
+        });
+        return { offline: true as const };
+      }
+
+      try {
+        const data = await submitPrice(payload);
+        return { offline: false as const, data };
+      } catch (err: any) {
+        const status = err?.response?.status;
+        const noNetwork = !err?.response || status === 0;
+        if (noNetwork) {
+          await enqueueOfflineSubmission({
+            ...payload,
+            product_name: selectedProduct?.name,
+            market_name: selectedMarket?.name,
+          });
+          return { offline: true as const };
+        }
+        throw err;
+      }
     },
-    onSuccess: (data) => {
+    onSuccess: (result) => {
       setSuccess(true);
-      if (user) {
-        setUser({ ...user, points: data.user.points });
+      setQueuedOffline(result.offline);
+      if (!result.offline && user && result.data) {
+        setUser({ ...user, points: result.data.user.points });
       }
       Animated.spring(scale, { toValue: 1, useNativeDriver: true, friction: 6 }).start();
+      void flushOfflineQueue();
     },
   });
 
@@ -134,9 +178,11 @@ export default function SubmitPriceScreen() {
           <Animated.View style={{ transform: [{ scale }] }}>
             <MaterialCommunityIcons name="check-decagram" size={72} color={Colors.primary.vibrantGreen} />
           </Animated.View>
-          <Text style={styles.blockTitle}>Submitted</Text>
+          <Text style={styles.blockTitle}>{queuedOffline ? 'Saved offline' : 'Submitted'}</Text>
           <Text style={styles.blockSub}>
-            After verification you earn ₦1 in your wallet. Thanks for helping Market Eye.
+            {queuedOffline
+              ? 'No signal right now — this price is queued and will upload when you are back online.'
+              : 'After verification you earn ₦1 in your wallet. Thanks for helping Market Eye.'}
           </Text>
           <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.goBack()}>
             <Text style={styles.primaryBtnText}>Done</Text>
@@ -172,6 +218,15 @@ export default function SubmitPriceScreen() {
             </TouchableOpacity>
           ) : null}
         </View>
+
+        {pendingCount > 0 ? (
+          <TouchableOpacity style={styles.pendingBanner} onPress={() => void flushOfflineQueue()}>
+            <MaterialCommunityIcons name="cloud-upload-outline" size={18} color="#92400E" />
+            <Text style={styles.pendingBannerText}>
+              Pending uploads ({pendingCount}) — tap to sync when online
+            </Text>
+          </TouchableOpacity>
+        ) : null}
 
         <ScrollView
           contentContainerStyle={styles.formScroll}
@@ -330,6 +385,20 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   title: { ...Typography.h2, color: '#111827', fontSize: 22, flex: 1 },
+  pendingBanner: {
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: '#FEF3C7',
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pendingBannerText: { flex: 1, color: '#92400E', fontWeight: '800', fontSize: 13 },
   clearChip: {
     paddingHorizontal: 10,
     paddingVertical: 6,

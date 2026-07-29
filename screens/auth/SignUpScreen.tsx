@@ -2,7 +2,7 @@
  * Sign Up Screen
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -18,9 +18,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useStore } from '@/store/useStore';
 import { Colors, Spacing, Typography } from '@/constants/colors';
-import { googleLoginRequest, mapAuthUserToAppUser, registerRequest } from '@/services/authApi';
-import { fetchMarketWatches } from '@/services/userApi';
-import { isGoogleConfigured, useGoogleAuthRequest } from '@/services/googleAuth';
+import { mapAuthUserToAppUser, registerRequest } from '@/services/authApi';
 
 export default function SignUpScreen() {
   const navigation = useNavigation();
@@ -34,32 +32,6 @@ export default function SignUpScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const googleReady = isGoogleConfigured();
-  const [googleRequest, googleResponse, promptGoogle] = useGoogleAuthRequest();
-
-  useEffect(() => {
-    const run = async () => {
-      const idToken = googleResponse?.type === 'success' ? googleResponse.params?.id_token : null;
-      if (!idToken) return;
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await googleLoginRequest(idToken);
-        setUser(mapAuthUserToAppUser(res.user));
-        try {
-          setMarketWatchlist(await fetchMarketWatches());
-        } catch {
-          setMarketWatchlist([]);
-        }
-        setAuthenticated(true);
-      } catch (e: any) {
-        setError(e?.response?.data?.message || e?.message || 'Google sign-in failed.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    run();
-  }, [googleResponse]);
 
   const handleSignUp = async () => {
     setError(null);
@@ -212,27 +184,6 @@ export default function SignUpScreen() {
               </Text>
             </TouchableOpacity>
 
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>OR</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            <TouchableOpacity
-              style={[styles.socialButton, (!googleReady || !googleRequest || loading) && { opacity: 0.5 }]}
-              disabled={!googleReady || !googleRequest || loading}
-              onPress={() => promptGoogle()}
-            >
-              <MaterialCommunityIcons
-                name="google"
-                size={20}
-                color={Colors.text.primary}
-              />
-              <Text style={styles.socialButtonText}>
-                {googleReady ? 'Continue with Google' : 'Google (set client ID in .env)'}
-              </Text>
-            </TouchableOpacity>
-
             <View style={styles.loginContainer}>
               <Text style={styles.loginText}>Already have an account? </Text>
               <TouchableOpacity onPress={() => navigation.navigate('Login' as never)}>
@@ -333,37 +284,6 @@ const styles = StyleSheet.create({
     ...Typography.body,
     color: Colors.primary.white,
     fontWeight: '600',
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: Spacing.lg,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: Colors.secondary.lightGray,
-  },
-  dividerText: {
-    ...Typography.caption,
-    color: Colors.text.secondary,
-    marginHorizontal: Spacing.md,
-  },
-  socialButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primary.white,
-    borderRadius: 12,
-    paddingVertical: Spacing.md,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.secondary.lightGray,
-    gap: Spacing.sm,
-  },
-  socialButtonText: {
-    ...Typography.body,
-    color: Colors.text.primary,
   },
   loginContainer: {
     flexDirection: 'row',

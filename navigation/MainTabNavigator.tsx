@@ -13,6 +13,7 @@ import AlertsScreen from '../screens/main/AlertsScreen';
 import CommodityDetailScreen from '../screens/main/CommodityDetailScreen';
 import CompareScreen from '../screens/main/CompareScreen';
 import DashboardScreen from '../screens/main/DashboardScreen';
+import InsightsScreen from '../screens/main/InsightsScreen';
 import LeaderboardScreen from '../screens/main/LeaderboardScreen';
 import MarketDetailScreen from '../screens/main/MarketDetailScreen';
 import MarketScreen from '../screens/main/MarketScreen';
@@ -173,6 +174,19 @@ export default function MainTabNavigator() {
         options={{
           tabBarIcon: ({ color, focused }) => (
             <MaterialCommunityIcons name={focused ? 'scale-balance' : 'scale-balance'} size={24} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Insights"
+        component={InsightsScreen}
+        options={{
+          tabBarIcon: ({ color, focused }) => (
+            <MaterialCommunityIcons
+              name={focused ? 'chart-timeline-variant' : 'chart-line'}
+              size={24}
+              color={color}
+            />
           ),
         }}
       />

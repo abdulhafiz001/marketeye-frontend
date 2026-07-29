@@ -27,6 +27,34 @@ export async function submitPrice(payload: {
   return data.data;
 }
 
+export async function submitPriceBatch(
+  submissions: Array<{
+    client_id?: string;
+    product_id: number;
+    market_id: number;
+    price: number;
+    quantity_value?: number;
+    quantity_unit?: string;
+    notes?: string;
+  }>
+) {
+  const { data } = await api.post<
+    ApiSuccess<{
+      accepted: number;
+      failed: number;
+      results: Array<{
+        index: number;
+        client_id: string | null;
+        ok: boolean;
+        message?: string;
+        submission?: { id: number; status: string; auto_approved: boolean; points_awarded: number };
+      }>;
+      user: { points: number; wallet_balance: number };
+    }>
+  >('/submissions/batch', { submissions });
+  return data.data;
+}
+
 export async function fetchMySubmissions() {
   const { data } = await api.get<ApiSuccess<{ submissions: any[] }>>('/user/submissions');
   return data.data.submissions;

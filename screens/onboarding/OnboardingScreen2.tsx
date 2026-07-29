@@ -1,5 +1,5 @@
 /**
- * Onboarding Screen 2: AI-Powered Forecasts
+ * Onboarding Screen 2: Crowd-verified prices
  */
 
 import React from 'react';
@@ -22,16 +22,16 @@ export default function OnboardingScreen2() {
       <View style={styles.content}>
         <View style={styles.iconContainer}>
           <MaterialCommunityIcons
-            name="brain"
+            name="account-group"
             size={120}
             color={Colors.primary.vibrantGreen}
           />
         </View>
 
-        <Text style={styles.title}>AI-Powered Forecasts</Text>
+        <Text style={styles.title}>Crowd-Verified Prices</Text>
         <Text style={styles.description}>
-          Leverage advanced AI to predict price trends and make smarter buying
-          decisions. Know when to buy and save money.
+          Real shoppers submit prices from Abuja markets. Admins verify them, so you
+          compare trustworthy numbers before you leave home — and earn airtime for helping.
         </Text>
 
         <View style={styles.indicatorContainer}>
@@ -150,4 +150,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
-

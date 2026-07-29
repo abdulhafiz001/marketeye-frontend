@@ -36,6 +36,12 @@ yarn-error.*
 # local env files
 .env*.local
 
+# Firebase / FCM — never commit these (share privately with collaborators)
+google-services.json
+fcm-service-account.json
+*-firebase-adminsdk-*.json
+!google-services.json.example
+
 # typescript
 *.tsbuildinfo
 

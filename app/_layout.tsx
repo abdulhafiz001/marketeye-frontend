@@ -15,6 +15,7 @@ import { loadStoredToken, persistToken } from '@/services/apiClient';
 import { fetchMarketWatches } from '@/services/userApi';
 import { hydratePreferences, setStoreState } from '@/store/useStore';
 import { AlertThresholdEvaluator } from '@/components/AlertThresholdEvaluator';
+import { OfflineQueueSync } from '@/components/OfflineQueueSync';
 
 export default function RootLayout() {
   const navigationRef = useRef<any>(null);
@@ -66,6 +67,7 @@ export default function RootLayout() {
         <QueryProvider>
           <NavigationContainer ref={navigationRef}>
             <AlertThresholdEvaluator />
+            <OfflineQueueSync />
             <AppNavigator navigationRef={navigationRef} />
             <StatusBar style="auto" />
           </NavigationContainer>

@@ -26,6 +26,7 @@ export interface Commodity {
   unit: string;
   description?: string;
   priceHistory?: PriceDataPoint[];
+  /** @deprecated Unused — prices are crowd-verified snapshots, not AI forecasts */
   aiForecast?: AIForecast;
   priceDrivers?: string[];
   marketPrices?: MarketPrice[];

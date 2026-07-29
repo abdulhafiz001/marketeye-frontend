@@ -26,7 +26,7 @@ export type MarketPriceRow = {
   snapshot_date: string;
   is_stale: boolean;
   low_confidence: boolean;
-  confidence_level: 'high' | 'low' | 'stale';
+  confidence_level: 'high' | 'medium' | 'low' | 'stale';
 };
 
 export async function fetchMarketPrices(marketId: number, params?: { category?: string; search?: string }) {

@@ -44,19 +44,40 @@ export type ProductDetail = {
       submission_count: number;
     };
     market_count: number;
+    history_market_id?: number | null;
   };
-  history: Array<{ date: string; avg_price: number }>;
+  history: Array<{
+    date: string;
+    label?: string;
+    avg_price: number;
+    min_price?: number;
+    max_price?: number;
+    submission_count?: number;
+  }>;
+  price_changes?: Array<{
+    date: string;
+    label: string;
+    price: number;
+    previous_price: number | null;
+    change_amount: number | null;
+    change_percent: number | null;
+    direction: 'start' | 'up' | 'down';
+    note: string;
+  }>;
   markets: Array<{
     market: { id: number; name: string; area: string | null };
     avg_price: number;
     min_price: number;
     max_price: number;
     snapshot_date: string;
+    as_of?: string;
     submission_count: number;
   }>;
 };
 
-export async function fetchProductDetail(productId: number) {
-  const { data } = await api.get<ApiSuccess<ProductDetail>>(`/products/${productId}`);
+export async function fetchProductDetail(productId: number, marketId?: number | null) {
+  const { data } = await api.get<ApiSuccess<ProductDetail>>(`/products/${productId}`, {
+    params: marketId ? { market_id: marketId } : undefined,
+  });
   return data.data;
 }
