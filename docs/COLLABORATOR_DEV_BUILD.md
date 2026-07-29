@@ -91,7 +91,10 @@ npx eas-cli whoami   # must show YOUR username
 **What is `EXPO_PUBLIC_EAS_PROJECT_ID`?**  
 A line **you type into your local `.env`** (same folder as `package.json`). It is not from Expo/Firebase automatically. It tells EAS which Expo project is yours.
 
-If `eas init` says `Project already linked (ID: 05f71ac9-...)`, the app config still has the **owner’s** id — pull latest (owner id was removed from git) and verify:
+**Common mistake:** putting the owner id `05f71ac9-5001-4077-b954-38187c2151cf` into your `.env`.  
+That id appears in old docs/errors — it is **not yours**. Expo will load it (`env: export EXPO_PUBLIC_EAS_PROJECT_ID`) and every build fails with Entity not authorized.
+
+If `eas` still mentions `05f71ac9-...`, open `.env` and fix the value — pull latest and verify:
 
 ```bash
 git pull

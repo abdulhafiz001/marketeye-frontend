@@ -40,17 +40,35 @@ loadDotEnvFile();
 const googleServicesPath = path.join(__dirname, 'google-services.json');
 const hasGoogleServices = fs.existsSync(googleServicesPath);
 
+/** Repo owner's Expo project — collaborators must NOT put this in their `.env`. */
+const OWNER_EAS_PROJECT_ID = '05f71ac9-5001-4077-b954-38187c2151cf';
+
 /**
  * EAS project id comes ONLY from `.env` → EXPO_PUBLIC_EAS_PROJECT_ID.
- * No hardcoded owner id in git (that blocked collaborators with "Entity not authorized").
  *
- * - unset / `new` / `-` → omit projectId → run `npx eas-cli init` to create your own
- * - uuid → use that Expo project
+ * - unset / `new` / `-` → omit projectId → run `npx eas-cli init`
+ * - uuid → that Expo project
+ * - owner's uuid → only if EXPO_PUBLIC_EAS_I_AM_OWNER=1 (owner machine)
  */
 function resolveEasProjectId() {
   const fromEnv = (process.env.EXPO_PUBLIC_EAS_PROJECT_ID || '').trim();
   if (!fromEnv || fromEnv === 'new' || fromEnv === '-') {
     return undefined;
+  }
+  if (fromEnv === OWNER_EAS_PROJECT_ID) {
+    const iAmOwner = (process.env.EXPO_PUBLIC_EAS_I_AM_OWNER || '').trim() === '1';
+    if (!iAmOwner) {
+      console.warn(
+        '\n[Market Eye] EXPO_PUBLIC_EAS_PROJECT_ID is set to the OWNER Expo project.\n' +
+          'Collaborators: change .env to:\n' +
+          '  EXPO_PUBLIC_EAS_PROJECT_ID=new\n' +
+          'then run: npx eas-cli init  (create YOUR project), then paste YOUR uuid.\n' +
+          'Ignoring owner project id so EAS will not call AppEntity[' +
+          OWNER_EAS_PROJECT_ID +
+          '].\n',
+      );
+      return undefined;
+    }
   }
   return fromEnv;
 }
