@@ -222,7 +222,7 @@ Or approve a submission that crosses an alert target (queue worker must be runni
 
 ## Common issues
 
-- **`npx eas login` → could not determine executable** → use `npx eas-cli login` (not `eas`). Pull latest main so `eas-cli` is in `devDependencies`, then reinstall.  
+- **`npx eas login` → could not determine executable** → use `npx eas-cli login` (not `eas`). Do not add `eas-cli` as a project dependency (expo-doctor rejects that); use `npx eas-cli` or a global install.  
 - **Entity not authorized / Project already linked (05f71ac9-...)** → still on the owner project. Run `git pull`, set `EXPO_PUBLIC_EAS_PROJECT_ID=new` in `.env`, run `npm run eas:which-project` (must say `none`), then `npx eas-cli init`.  
 - **Emergency (no pull yet):** in `app.config.js` search for `05f71ac9` or `projectId` and delete that whole `eas: { projectId: ... }` block, save, run `npx eas-cli init`.  
 - **Node EBADENGINE / 22.9.0** → upgrade to Node **22.13+** or **20.19+**.  

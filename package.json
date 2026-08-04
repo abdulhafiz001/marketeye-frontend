@@ -12,8 +12,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "eas:login": "eas login",
-    "eas:build:dev": "eas build --profile development --platform android",
+    "eas:login": "npx eas-cli login",
+    "eas:build:dev": "npx eas-cli build --profile development --platform android",
     "eas:which-project": "node ./scripts/print-eas-project-id.js",
     "typecheck": "tsc --noEmit"
   },
@@ -21,7 +21,7 @@
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/masked-view": "^0.1.11",
-    "@react-native-community/netinfo": "^12.0.1",
+    "@react-native-community/netinfo": "^11.4.1",
     "@react-native-masked-view/masked-view": "^0.3.2",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
@@ -64,7 +64,6 @@
   "devDependencies": {
     "@types/react": "~19.1.0",
     "babel-plugin-module-resolver": "^5.0.2",
-    "eas-cli": "^16.32.0",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
     "typescript": "~5.9.2"
