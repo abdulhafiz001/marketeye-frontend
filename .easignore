@@ -1,0 +1,53 @@
+# Used by EAS upload instead of .gitignore when present.
+# Intentionally allows google-services.json (gitignored) so Android FCM Gradle can succeed.
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+.cursor/
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env / secrets (API URL comes from eas.json env)
+.env
+.env*.local
+fcm-service-account.json
+*-firebase-adminsdk-*.json
+
+# typescript
+*.tsbuildinfo
+
+app-example
+
+# generated native folders
+/ios
+/android
+
+# docs / tests noise
+**/*.md
+!docs/COLLABORATOR_DEV_BUILD.md

@@ -19,6 +19,7 @@ import { Colors, Spacing, Typography } from '@/constants/colors';
 import { fetchCategories, fetchProducts } from '@/services/catalogApi';
 import { fetchMarkets } from '@/services/marketsApi';
 import { fetchTrending } from '@/services/pricesApi';
+import { resolveCategoryIcon } from '@/utils/categoryIcon';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - Spacing.lg * 2 - Spacing.md) / 2;
@@ -234,7 +235,7 @@ export default function DashboardScreen() {
                 >
                   <View style={styles.catIcon}>
                     <MaterialCommunityIcons
-                      name={(c.icon as any) || 'shape-outline'}
+                      name={resolveCategoryIcon(c.icon, c.name, c.slug)}
                       size={22}
                       color={Colors.primary.deepBlue}
                     />

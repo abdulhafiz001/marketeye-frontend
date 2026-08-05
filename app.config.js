@@ -40,40 +40,32 @@ loadDotEnvFile();
 const googleServicesPath = path.join(__dirname, 'google-services.json');
 const hasGoogleServices = fs.existsSync(googleServicesPath);
 
-/** Repo owner's Expo project — collaborators must NOT put this in their `.env`. */
+/** Default Expo project (owner). EAS cloud builds re-run this file without local `.env`. */
 const OWNER_EAS_PROJECT_ID = '05f71ac9-5001-4077-b954-38187c2151cf';
 
 /**
- * EAS project id comes ONLY from `.env` → EXPO_PUBLIC_EAS_PROJECT_ID.
- *
- * - unset / `new` / `-` → omit projectId → run `npx eas-cli init`
- * - uuid → that Expo project
- * - owner's uuid → only if EXPO_PUBLIC_EAS_I_AM_OWNER=1 (owner machine)
+ * - unset → owner project id (required so remote EAS builds have extra.eas.projectId)
+ * - `new` / `-` → omit (collaborator running `eas init`)
+ * - uuid → that Expo project (collaborator override)
  */
 function resolveEasProjectId() {
   const fromEnv = (process.env.EXPO_PUBLIC_EAS_PROJECT_ID || '').trim();
-  if (!fromEnv || fromEnv === 'new' || fromEnv === '-') {
+  if (fromEnv === 'new' || fromEnv === '-') {
     return undefined;
   }
-  if (fromEnv === OWNER_EAS_PROJECT_ID) {
-    const iAmOwner = (process.env.EXPO_PUBLIC_EAS_I_AM_OWNER || '').trim() === '1';
-    if (!iAmOwner) {
-      console.warn(
-        '\n[Market Eye] EXPO_PUBLIC_EAS_PROJECT_ID is set to the OWNER Expo project.\n' +
-          'Collaborators: change .env to:\n' +
-          '  EXPO_PUBLIC_EAS_PROJECT_ID=new\n' +
-          'then run: npx eas-cli init  (create YOUR project), then paste YOUR uuid.\n' +
-          'Ignoring owner project id so EAS will not call AppEntity[' +
-          OWNER_EAS_PROJECT_ID +
-          '].\n',
-      );
-      return undefined;
-    }
+  if (fromEnv) {
+    return fromEnv;
   }
-  return fromEnv;
+  return OWNER_EAS_PROJECT_ID;
 }
 
 const easProjectId = resolveEasProjectId();
+if (!easProjectId) {
+  console.warn(
+    '[Market Eye] extra.eas.projectId is unset (EXPO_PUBLIC_EAS_PROJECT_ID=new). ' +
+      'Run `npx eas-cli init`, then set your project UUID in .env / eas.json env.',
+  );
+}
 
 /** @type {import('expo/config').ExpoConfig} */
 const config = {
@@ -142,17 +134,14 @@ const config = {
     ],
   ],
   extra: {
-    apiUrl: process.env.EXPO_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1',
+    apiUrl: process.env.EXPO_PUBLIC_API_URL || 'https://marketeye.ahzcode.sbs/api/v1',
     googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '',
     googleAndroidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '',
     googleIosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '',
-    ...(easProjectId
-      ? {
-          eas: {
-            projectId: easProjectId,
-          },
-        }
-      : {}),
+    eas: {
+      // Always emit when resolved — missing field fails EAS Build.
+      ...(easProjectId ? { projectId: easProjectId } : {}),
+    },
   },
   experiments: {
     typedRoutes: true,
