@@ -27,9 +27,9 @@ try {
   console.log('Could not clear system temp files (ignoring)');
 }
 
-console.log('📦 Installing dependencies...');
-execSync('npm install', { stdio: 'inherit' });
+console.log('📦 Installing dependencies with pnpm...');
+execSync('pnpm install --frozen-lockfile', { stdio: 'inherit' });
 
 console.log('✨ Project cleaned and dependencies installed.');
-console.log('🚀 Run "npx expo start --clear" to start the app.');
+console.log('🚀 Run "pnpm exec expo start --clear" to start the app.');
 

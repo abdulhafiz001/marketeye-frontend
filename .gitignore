@@ -3,6 +3,12 @@
 # dependencies
 node_modules/
 
+# pnpm is the only supported package manager
+package-lock.json
+yarn.lock
+bun.lock
+bun.lockb
+
 # Expo
 .expo/
 dist/
@@ -21,6 +27,8 @@ expo-env.d.ts
 
 .cursor/
 .env
+.env.*
+!.env.example
 # Metro
 .metro-health-check*
 
@@ -32,9 +40,6 @@ yarn-error.*
 # macOS
 .DS_Store
 *.pem
-
-# local env files
-.env*.local
 
 # Firebase / FCM — never commit these (share privately with collaborators)
 google-services.json

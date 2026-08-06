@@ -3,6 +3,10 @@
 
 # dependencies
 node_modules/
+package-lock.json
+yarn.lock
+bun.lock
+bun.lockb
 
 # Expo
 .expo/
@@ -33,9 +37,11 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env / secrets (API URL comes from eas.json env)
-.env
-.env*.local
+# `.env` is intentionally included: it contains only EXPO_PUBLIC_* values and
+# the per-developer EAS project UUID required when remote config is evaluated.
+# Never put private keys or server-side secrets in EXPO_PUBLIC_* variables.
+.env.*
+!.env.example
 fcm-service-account.json
 *-firebase-adminsdk-*.json
 

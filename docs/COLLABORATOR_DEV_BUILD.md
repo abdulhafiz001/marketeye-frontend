@@ -18,17 +18,20 @@ Send this file (or copy the steps below) to teammates.
 
 ## 1. Clone & install
 
-**Node version:** use **Node 20.19+** or **22.13+** (not 22.9.0).  
-Check with `node -v`. Upgrade via [nodejs.org](https://nodejs.org/) or `nvm install 22`.
+**Supported Node versions:** Node **20.19+**, **22.13+**, or Node **24 LTS**. Do not use odd-numbered Node releases or Node 22.0–22.12.
 
 ```bash
 git clone <REPO_URL>
 cd marketeye-frontend
-pnpm install
-# or: npm install
+corepack enable
+corepack prepare pnpm@11.4.0 --activate
+pnpm install --frozen-lockfile
+pnpm doctor
 ```
 
-Copy env:
+This repository uses **pnpm only**. Do not run `npm install` or `yarn`; they create conflicting lockfiles and are rejected by the preinstall check.
+
+Copy the local environment:
 
 ```bash
 cp .env.example .env
@@ -37,8 +40,9 @@ cp .env.example .env
 Edit `.env`:
 
 ```env
-EXPO_PUBLIC_API_URL=https://YOUR_BACKEND_URL
-EXPO_PUBLIC_ADMIN_PANEL_URL=https://YOUR_BACKEND_URL/admin
+EXPO_PUBLIC_API_URL=https://marketeye.ahzcode.sbs/api/v1
+EXPO_PUBLIC_ADMIN_PANEL_URL=https://marketeye.ahzcode.sbs/admin
+EXPO_PUBLIC_EAS_PROJECT_ID=new
 
 # Optional Google sign-in (ask owner for client IDs)
 EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=
@@ -91,46 +95,34 @@ npx eas-cli whoami   # must show YOUR username
 **What is `EXPO_PUBLIC_EAS_PROJECT_ID`?**  
 A line **you type into your local `.env`** (same folder as `package.json`). It is not from Expo/Firebase automatically. It tells EAS which Expo project is yours.
 
-**Common mistake:** putting the owner id `05f71ac9-5001-4077-b954-38187c2151cf` into your `.env`.  
-That id appears in old docs/errors — it is **not yours**. Expo will load it (`env: export EXPO_PUBLIC_EAS_PROJECT_ID`) and every build fails with Entity not authorized.
-
-If `eas` still mentions `05f71ac9-...`, open `.env` and fix the value — pull latest and verify:
-
-```bash
-git pull
-npm run eas:which-project
-```
-
-You want: `Resolved extra.eas.projectId: (none — ok to run eas init)`.
-
-1. In `.env`:
+1. Confirm `.env` starts unlinked:
 
 ```env
 EXPO_PUBLIC_EAS_PROJECT_ID=new
 ```
 
-2. Confirm unlink:
-
-```bash
-npm run eas:which-project
-```
-
-3. Create **your** project:
+2. Create **your** project:
 
 ```bash
 npx eas-cli init
 ```
 
-- **Create a new project** under your login (`beauteeanne` etc.).
-- If `eas init` edits `app.config.js` and inserts a `projectId`, copy that UUID into `.env` as below, then **undo** the `app.config.js` change (`git checkout -- app.config.js`) so you don’t commit your id.
+- Choose **Create a new project** under your own Expo login.
+- Copy the UUID printed by EAS. Do not copy another developer's UUID.
 
-4. Save your uuid in `.env`:
+3. Replace `new` in `.env` with your UUID:
 
 ```env
 EXPO_PUBLIC_EAS_PROJECT_ID=paste-your-uuid-here
 ```
 
-5. Then credentials / build.
+4. Verify the link:
+
+```bash
+pnpm eas:which-project
+```
+
+It must print your UUID and `OK — projectId present for EAS`.
 
 ### 3b. Upload FCM credentials on *your* EAS project
 
@@ -156,8 +148,7 @@ Web UI: [expo.dev](https://expo.dev) → **your** project → Credentials → An
 ```bash
 cd marketeye-frontend
 npx eas-cli build --profile development --platform android
-# or: npm run eas:build:dev
-# or: pnpm exec eas build --profile development --platform android
+# or: pnpm eas:build:dev
 ```
 
 When the build finishes:
@@ -174,7 +165,7 @@ Phone and PC on the same Wi‑Fi (for LAN API), then:
 
 ```bash
 cd marketeye-frontend
-npx expo start --dev-client
+pnpm exec expo start --dev-client
 ```
 
 Open the installed **Market Eye** app (not Expo Go). It should connect to Metro.
@@ -182,7 +173,7 @@ Open the installed **Market Eye** app (not Expo Go). It should connect to Metro.
 If the API URL changed, update `.env` and restart with cache clear:
 
 ```bash
-npx expo start --dev-client -c
+pnpm exec expo start --dev-client -c
 ```
 
 ---
@@ -213,9 +204,9 @@ Or approve a submission that crosses an alert target (queue worker must be runni
 | `google-services.json` in frontend root | ☐ |
 | Own EAS project + `EXPO_PUBLIC_EAS_PROJECT_ID` in `.env` | ☐ |
 | FCM V1 key on **your** EAS project | ☐ |
-| `eas build --profile development --platform android` | ☐ |
+| `npx eas-cli build --profile development --platform android` | ☐ |
 | APK installed on real device | ☐ |
-| `npx expo start --dev-client` | ☐ |
+| `pnpm exec expo start --dev-client` | ☐ |
 | Sign in + create price alert | ☐ |
 
 ---
@@ -223,8 +214,8 @@ Or approve a submission that crosses an alert target (queue worker must be runni
 ## Common issues
 
 - **`npx eas login` → could not determine executable** → use `npx eas-cli login` (not `eas`). Do not add `eas-cli` as a project dependency (expo-doctor rejects that); use `npx eas-cli` or a global install.  
-- **Entity not authorized / Project already linked (05f71ac9-...)** → still on the owner project. Run `git pull`, set `EXPO_PUBLIC_EAS_PROJECT_ID=new` in `.env`, run `npm run eas:which-project` (must say `none`), then `npx eas-cli init`.  
-- **Emergency (no pull yet):** in `app.config.js` search for `05f71ac9` or `projectId` and delete that whole `eas: { projectId: ... }` block, save, run `npx eas-cli init`.  
+- **Multiple lock files detected** → delete `package-lock.json` / `yarn.lock`, then run `pnpm install --frozen-lockfile`.
+- **Entity not authorized** → `.env` contains another person's project UUID. Set it to `new`, run `npx eas-cli init`, then save your new UUID in `.env`.
 - **Node EBADENGINE / 22.9.0** → upgrade to Node **22.13+** or **20.19+**.  
 - **Using Expo Go** → remote push won’t work. Use the EAS APK.  
 - **`localhost` API on phone** → phone can’t see your PC. Use LAN IP or deployed backend URL.  

@@ -12,8 +12,7 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://marketeye.ahzcode.sbs/api/v1",
-        "EXPO_PUBLIC_ADMIN_PANEL_URL": "https://marketeye.ahzcode.sbs/admin",
-        "EXPO_PUBLIC_EAS_PROJECT_ID": "05f71ac9-5001-4077-b954-38187c2151cf"
+        "EXPO_PUBLIC_ADMIN_PANEL_URL": "https://marketeye.ahzcode.sbs/admin"
       }
     },
     "preview": {
@@ -23,8 +22,7 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://marketeye.ahzcode.sbs/api/v1",
-        "EXPO_PUBLIC_ADMIN_PANEL_URL": "https://marketeye.ahzcode.sbs/admin",
-        "EXPO_PUBLIC_EAS_PROJECT_ID": "05f71ac9-5001-4077-b954-38187c2151cf"
+        "EXPO_PUBLIC_ADMIN_PANEL_URL": "https://marketeye.ahzcode.sbs/admin"
       }
     },
     "production": {
@@ -34,8 +32,7 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://marketeye.ahzcode.sbs/api/v1",
-        "EXPO_PUBLIC_ADMIN_PANEL_URL": "https://marketeye.ahzcode.sbs/admin",
-        "EXPO_PUBLIC_EAS_PROJECT_ID": "05f71ac9-5001-4077-b954-38187c2151cf"
+        "EXPO_PUBLIC_ADMIN_PANEL_URL": "https://marketeye.ahzcode.sbs/admin"
       }
     }
   },

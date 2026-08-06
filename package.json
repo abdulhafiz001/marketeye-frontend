@@ -2,10 +2,12 @@
   "name": "market-eye",
   "main": "index.js",
   "version": "1.0.0",
+  "packageManager": "pnpm@11.4.0",
   "engines": {
-    "node": ">=20.19.0"
+    "node": "^20.19.0 || ^22.13.0 || ^24.0.0"
   },
   "scripts": {
+    "preinstall": "node ./scripts/require-pnpm.js",
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
@@ -15,6 +17,8 @@
     "eas:login": "npx eas-cli login",
     "eas:build:dev": "npx eas-cli build --profile development --platform android",
     "eas:which-project": "node ./scripts/print-eas-project-id.js",
+    "doctor": "expo-doctor",
+    "verify": "pnpm doctor && pnpm typecheck && pnpm lint",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -65,6 +69,7 @@
     "babel-plugin-module-resolver": "^5.0.2",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
+    "expo-doctor": "^1.20.1",
     "typescript": "~5.9.2"
   },
   "private": true

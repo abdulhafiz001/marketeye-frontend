@@ -42,8 +42,9 @@ Expo Go cannot receive remote push on modern Android. Use an **EAS development b
 From `marketeye-frontend`:
 
 ```bash
-npx eas login
-npx eas credentials
+npx eas-cli login
+pnpm eas:which-project
+npx eas-cli credentials
 ```
 
 Then:
@@ -56,7 +57,8 @@ Then:
 Or use the Expo website:  
 Project → Credentials → Android → `com.marketeye.app` → FCM V1 service account key.
 
-EAS project id (already in config): `05f71ac9-5001-4077-b954-38187c2151cf`
+Each developer uses the project UUID stored in their local `.env` as
+`EXPO_PUBLIC_EAS_PROJECT_ID`. Never reuse another developer's UUID.
 
 ---
 
@@ -65,13 +67,13 @@ EAS project id (already in config): `05f71ac9-5001-4077-b954-38187c2151cf`
 ```bash
 cd marketeye-frontend
 # confirm google-services.json is present
-npx eas build --profile development --platform android
+npx eas-cli build --profile development --platform android
 ```
 
 Install the APK on a physical phone, then:
 
 ```bash
-npx expo start --dev-client
+pnpm exec expo start --dev-client
 ```
 
 Sign in → open Notification Settings → create a price alert (this requests permission + registers `ExponentPushToken[...]` with Laravel).

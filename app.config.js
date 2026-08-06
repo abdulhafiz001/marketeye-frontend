@@ -2,8 +2,8 @@ const fs = require('fs');
 const path = require('path');
 
 /**
- * eas-cli does NOT load `.env` by itself. Without this, EXPO_PUBLIC_* is empty
- * during `eas credentials` / `eas build` and the owner projectId always wins.
+ * Load `.env` consistently when Expo/EAS evaluates this dynamic config.
+ * Each clone owns its local API URL and EAS project UUID.
  */
 function loadDotEnvFile() {
   const envPath = path.join(__dirname, '.env');
@@ -40,23 +40,16 @@ loadDotEnvFile();
 const googleServicesPath = path.join(__dirname, 'google-services.json');
 const hasGoogleServices = fs.existsSync(googleServicesPath);
 
-/** Default Expo project (owner). EAS cloud builds re-run this file without local `.env`. */
-const OWNER_EAS_PROJECT_ID = '05f71ac9-5001-4077-b954-38187c2151cf';
-
 /**
- * - unset → owner project id (required so remote EAS builds have extra.eas.projectId)
- * - `new` / `-` → omit (collaborator running `eas init`)
- * - uuid → that Expo project (collaborator override)
+ * Every developer supplies their own project UUID in their gitignored `.env`.
+ * `new` / `-` intentionally omit the field while running `eas init`.
  */
 function resolveEasProjectId() {
   const fromEnv = (process.env.EXPO_PUBLIC_EAS_PROJECT_ID || '').trim();
-  if (fromEnv === 'new' || fromEnv === '-') {
+  if (!fromEnv || fromEnv === 'new' || fromEnv === '-') {
     return undefined;
   }
-  if (fromEnv) {
-    return fromEnv;
-  }
-  return OWNER_EAS_PROJECT_ID;
+  return fromEnv;
 }
 
 const easProjectId = resolveEasProjectId();
@@ -138,10 +131,7 @@ const config = {
     googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '',
     googleAndroidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '',
     googleIosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '',
-    eas: {
-      // Always emit when resolved — missing field fails EAS Build.
-      ...(easProjectId ? { projectId: easProjectId } : {}),
-    },
+    ...(easProjectId ? { eas: { projectId: easProjectId } } : {}),
   },
   experiments: {
     typedRoutes: true,
