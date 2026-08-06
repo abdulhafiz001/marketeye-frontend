@@ -18,7 +18,7 @@ Send this file (or copy the steps below) to teammates.
 
 ## 1. Clone & install
 
-**Supported Node versions:** Node **20.19+**, **22.13+**, or Node **24 LTS**. Do not use odd-numbered Node releases or Node 22.0–22.12.
+**Supported Node versions:** Node **20.19.4+**, **22.13+**, or **24.3+ LTS**. Do not use odd-numbered Node releases or Node 22.0–22.12.
 
 ```bash
 git clone <REPO_URL>

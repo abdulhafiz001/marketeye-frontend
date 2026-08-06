@@ -1,6 +1,10 @@
 const userAgent = process.env.npm_config_user_agent || '';
+const isCi = process.env.CI === 'true';
 
-if (!userAgent.startsWith('pnpm/')) {
+// CI already verifies that pnpm-lock.yaml is the only lockfile before install.
+// Some hosted runners preserve an npm-flavoured user-agent even when pnpm
+// executes lifecycle scripts, so do not reject a verified CI installation.
+if (!isCi && !userAgent.startsWith('pnpm/')) {
   console.error(
     [
       '',

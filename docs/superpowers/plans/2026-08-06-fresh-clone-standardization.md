@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Supported Node versions: `^20.19.0 || ^22.13.0 || ^24.0.0`.
+- Supported Node versions: `^20.19.4 || ^22.13.0 || ^24.3.0`.
 - `pnpm-lock.yaml` is the only lockfile.
 - No Expo project UUID is committed in `app.config.js` or `eas.json`.
 - Every developer owns and configures a separate EAS project.
