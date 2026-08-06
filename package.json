@@ -7,7 +7,6 @@
     "node": "^20.19.4 || ^22.13.0 || ^24.3.0"
   },
   "scripts": {
-    "preinstall": "node ./scripts/require-pnpm.js",
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",

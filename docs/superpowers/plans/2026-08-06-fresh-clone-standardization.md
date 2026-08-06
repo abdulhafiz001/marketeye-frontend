@@ -23,13 +23,11 @@
 - Modify: `package.json`
 - Modify: `.npmrc`
 - Modify: `.gitignore`
-- Create: `scripts/require-pnpm.js`
 - Modify: `scripts/fix-project.js`
 
 - [ ] Add the pnpm package-manager declaration and exact Node engine range.
-- [ ] Add a preinstall guard that rejects npm and Yarn with corrective commands.
-- [ ] Ignore non-pnpm lockfiles and make the cleanup script install with pnpm.
-- [ ] Verify the guard rejects an npm user-agent and accepts pnpm.
+- [ ] Disable npm lockfile generation, ignore non-pnpm lockfiles, and make the cleanup script install with pnpm.
+- [ ] Verify frozen pnpm installation succeeds on a clean dependency graph.
 
 ### Task 2: Decouple EAS ownership
 

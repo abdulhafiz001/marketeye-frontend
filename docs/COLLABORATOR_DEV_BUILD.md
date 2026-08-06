@@ -29,7 +29,7 @@ pnpm install --frozen-lockfile
 pnpm doctor
 ```
 
-This repository uses **pnpm only**. Do not run `npm install` or `yarn`; they create conflicting lockfiles and are rejected by the preinstall check.
+This repository uses **pnpm only**. Do not run `npm install` or `yarn`; they can install a different dependency graph and create conflicting lockfiles.
 
 Copy the local environment:
 
