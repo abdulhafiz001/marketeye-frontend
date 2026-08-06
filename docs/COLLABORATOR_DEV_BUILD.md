@@ -147,6 +147,11 @@ npx eas-cli build --profile development --platform android
 # or: pnpm eas:build:dev
 ```
 
+> The build environment is pinned in `eas.json` (`node: 22.13.0`, `pnpm: 11.4.0`),
+> so EAS uses the exact same toolchain as CI and your local machine. Never edit
+> those pins without updating `package.json` (`packageManager` / `engines`) and
+> `.github/workflows/ci.yml` to match.
+
 When the build finishes:
 
 1. Open the build page link from the terminal  
