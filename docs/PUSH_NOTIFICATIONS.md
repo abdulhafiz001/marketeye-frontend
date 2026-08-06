@@ -37,7 +37,17 @@ Expo Go cannot receive remote push on modern Android. Use an **EAS development b
 
 ---
 
-## 2. Upload FCM V1 key to Expo (EAS)
+## 2. EAS FCM V1 key (optional fallback)
+
+The Laravel backend already sends directly through FCM using
+`storage/app/firebase/service-account.json`. A collaborator does not need that
+private file and does not need to run `eas credentials` for normal Market Eye
+development builds.
+
+Only configure this section if Expo Push is intentionally being used as the
+primary/fallback delivery service. Never upload `google-services.json` here;
+the prompt requires a service-account JSON containing `type`, `private_key`,
+and `client_email`.
 
 From `marketeye-frontend`:
 

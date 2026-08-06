@@ -124,22 +124,18 @@ pnpm eas:which-project
 
 It must print your UUID and `OK — projectId present for EAS`.
 
-### 3b. Upload FCM credentials on *your* EAS project
+### 3b. Push credentials (not required for this project)
 
-You still need the same Firebase Android app as the backend (`google-services.json` for `com.marketeye.app`) so server push can reach your device. Upload the FCM V1 service account JSON **to your EAS project**:
+Market Eye's Laravel backend sends notifications directly through FCM using the
+service account mounted on the server. Collaborators do **not** upload that
+private backend key to EAS.
 
-```bash
-npx eas-cli credentials
-```
+For the Android app, only place `google-services.json` in the frontend root.
+Do not select that file in `eas credentials`; it is client configuration, not a
+Google service-account key.
 
-1. **Android**  
-2. Profile: **development** (upload for production too if you use it)  
-3. **Google Service Account → FCM V1**  
-4. Upload the Firebase service-account JSON the owner shared privately  
-
-Web UI: [expo.dev](https://expo.dev) → **your** project → Credentials → Android → `com.marketeye.app` → FCM V1.
-
-**Note:** Expo/EAS is yours; Firebase can still be the shared Market Eye Firebase project so the Laravel backend can push to you. Fully separate Firebase is only needed if you also run your own backend.
+EAS FCM V1 credentials are only needed if the project later chooses to rely on
+Expo's push relay as the primary sender instead of direct backend FCM.
 
 ---
 
@@ -203,7 +199,6 @@ Or approve a submission that crosses an alert target (queue worker must be runni
 | `pnpm install` + `.env` with API URL | ☐ |
 | `google-services.json` in frontend root | ☐ |
 | Own EAS project + `EXPO_PUBLIC_EAS_PROJECT_ID` in `.env` | ☐ |
-| FCM V1 key on **your** EAS project | ☐ |
 | `npx eas-cli build --profile development --platform android` | ☐ |
 | APK installed on real device | ☐ |
 | `pnpm exec expo start --dev-client` | ☐ |
