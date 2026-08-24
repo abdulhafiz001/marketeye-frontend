@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -54,13 +55,14 @@ export default function MarketScreen() {
       </View>
 
       <View style={styles.searchBar}>
-        <MaterialCommunityIcons name="magnify" size={20} color="#9CA3AF" />
+        <MaterialCommunityIcons name="magnify" size={22} color="#64748B" />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search Wuse, Utako…"
-          placeholderTextColor="#9CA3AF"
+          placeholder="Search markets (Wuse, Utako, Garki...)"
+          placeholderTextColor="#64748B"
           value={searchQuery}
           onChangeText={setSearchQuery}
+          returnKeyType="search"
         />
       </View>
 
@@ -156,24 +158,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFF',
     marginHorizontal: Spacing.lg,
-    paddingHorizontal: Spacing.md,
-    height: 48,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    paddingHorizontal: 16,
+    minHeight: 52,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
     marginBottom: Spacing.md,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 4,
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
     elevation: 2,
+    gap: 10,
   },
   searchInput: {
     flex: 1,
-    marginLeft: Spacing.sm,
-    fontSize: 16,
-    color: '#111827',
-    height: '100%',
+    fontSize: 15,
+    color: '#0F172A',
+    fontWeight: '600',
+    paddingVertical: Platform.OS === 'ios' ? 8 : 6,
+    minHeight: 44,
   },
   listContent: {
     paddingHorizontal: Spacing.lg,

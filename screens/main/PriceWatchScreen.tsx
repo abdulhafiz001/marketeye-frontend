@@ -376,13 +376,14 @@ export default function PriceWatchScreen() {
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               <Text style={styles.modalLabel}>1. Search Product</Text>
               <View style={styles.searchBar}>
-                <MaterialCommunityIcons name="magnify" size={20} color="#9CA3AF" />
+                <MaterialCommunityIcons name="magnify" size={22} color="#64748B" />
                 <TextInput
                   value={search}
                   onChangeText={setSearch}
-                  placeholder="e.g. Rice, Garri, Palm Oil..."
-                  placeholderTextColor="#9CA3AF"
+                  placeholder="e.g. Rice, Garri, Palm Oil, Beans..."
+                  placeholderTextColor="#64748B"
                   style={styles.searchInput}
+                  returnKeyType="search"
                 />
               </View>
 
@@ -679,14 +680,22 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    gap: 8,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    minHeight: 52,
+    gap: 10,
     marginBottom: 10,
   },
-  searchInput: { flex: 1, paddingVertical: 12, color: '#0F172A', fontWeight: '600' },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    paddingVertical: Platform.OS === 'ios' ? 8 : 6,
+    color: '#0F172A',
+    fontWeight: '600',
+    minHeight: 44,
+  },
   productPicker: { maxHeight: 200 },
   productOption: {
     flexDirection: 'row',

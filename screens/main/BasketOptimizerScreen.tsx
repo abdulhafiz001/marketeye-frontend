@@ -320,13 +320,14 @@ export default function BasketOptimizerScreen() {
             </View>
 
             <View style={styles.searchBar}>
-              <MaterialCommunityIcons name="magnify" size={20} color="#9CA3AF" />
+              <MaterialCommunityIcons name="magnify" size={22} color="#64748B" />
               <TextInput
                 value={productSearch}
                 onChangeText={setProductSearch}
-                placeholder="Search food items (Rice, Garri, Beans...)"
-                placeholderTextColor="#9CA3AF"
+                placeholder="Search commodities (e.g. Rice, Beans, Garri...)"
+                placeholderTextColor="#64748B"
                 style={styles.searchInput}
+                returnKeyType="search"
               />
             </View>
 
@@ -576,14 +577,22 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    gap: 8,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    minHeight: 52,
+    gap: 10,
     marginBottom: 12,
   },
-  searchInput: { flex: 1, paddingVertical: 12, color: '#0F172A', fontWeight: '600' },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    paddingVertical: Platform.OS === 'ios' ? 8 : 6,
+    color: '#0F172A',
+    fontWeight: '600',
+    minHeight: 44,
+  },
   productRow: {
     flexDirection: 'row',
     alignItems: 'center',

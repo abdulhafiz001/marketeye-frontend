@@ -131,14 +131,15 @@ export default function DashboardScreen() {
 
           {/* Search Box */}
           <View style={styles.searchContainer}>
-            <MaterialCommunityIcons name="magnify" size={20} color="#9CA3AF" />
+            <MaterialCommunityIcons name="magnify" size={22} color="#64748B" />
             <TextInput
-              placeholder="Search food prices (Rice, Garri, Meat...)"
-              placeholderTextColor="#9CA3AF"
+              placeholder="Search commodities (e.g. Rice, Garri, Meat...)"
+              placeholderTextColor="#64748B"
               style={styles.searchInput}
               value={search}
               onChangeText={setSearch}
               onSubmitEditing={submitSearch}
+              returnKeyType="search"
             />
             <TouchableOpacity style={styles.filterButton} onPress={() => navigation.navigate('Basket')}>
               <MaterialCommunityIcons name="cart-outline" size={20} color={Colors.primary.white} />
@@ -575,18 +576,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFF',
     borderRadius: 16,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Platform.OS === 'ios' ? 12 : 4,
-    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: Platform.OS === 'ios' ? 8 : 4,
+    minHeight: 54,
+    borderWidth: 1.5,
     borderColor: '#E2E8F0',
-    gap: Spacing.sm,
+    gap: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
+    shadowOpacity: 0.04,
     shadowRadius: 6,
     elevation: 2,
   },
-  searchInput: { flex: 1, ...Typography.body, color: '#0F172A', height: 40, fontWeight: '600' },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#0F172A',
+    fontWeight: '600',
+    paddingVertical: Platform.OS === 'ios' ? 8 : 6,
+    minHeight: 44,
+  },
   filterButton: { backgroundColor: Colors.primary.deepBlue, padding: 8, borderRadius: 10 },
   searchResults: {
     marginTop: 8,

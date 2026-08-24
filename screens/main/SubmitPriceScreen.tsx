@@ -355,12 +355,14 @@ export default function SubmitPriceScreen() {
           ) : (
             <>
               <View style={styles.search}>
-                <MaterialCommunityIcons name="magnify" size={20} color="#9CA3AF" />
+                <MaterialCommunityIcons name="magnify" size={22} color="#64748B" />
                 <TextInput
                   value={q}
                   onChangeText={setQ}
                   placeholder="Search commodity (e.g. Rice, Beans, Garri...)"
+                  placeholderTextColor="#64748B"
                   style={styles.searchInput}
+                  returnKeyType="search"
                 />
               </View>
               <ScrollView
@@ -556,14 +558,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: Spacing.lg,
     backgroundColor: '#FFF',
-    borderRadius: 14,
-    borderWidth: 1,
+    borderRadius: 16,
+    borderWidth: 1.5,
     borderColor: '#E2E8F0',
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: 16,
+    minHeight: 52,
     marginBottom: Spacing.sm,
-    gap: 8,
+    gap: 10,
   },
-  searchInput: { flex: 1, paddingVertical: 12, color: '#0F172A', fontWeight: '600' },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    paddingVertical: Platform.OS === 'ios' ? 8 : 6,
+    color: '#0F172A',
+    fontWeight: '600',
+    minHeight: 44,
+  },
   productList: {
     maxHeight: 200,
     marginHorizontal: Spacing.lg,
