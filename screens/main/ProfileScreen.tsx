@@ -172,6 +172,25 @@ export default function ProfileScreen() {
   // Grouping items makes the UI much cleaner
   const sections: MenuSection[] = [
     {
+      title: 'Community & Market Data',
+      items: [
+        {
+          id: '1',
+          title: 'Leaderboard & Rankings',
+          icon: 'trophy',
+          screen: 'Leaderboard',
+          color: '#F59E0B', // Amber
+        },
+        {
+          id: '1b',
+          title: 'Market Insights & Heatmap',
+          icon: 'chart-timeline-variant',
+          screen: 'Insights',
+          color: '#10B981', // Emerald
+        },
+      ],
+    },
+    {
       title: 'Settings',
       items: [
         {
@@ -183,7 +202,7 @@ export default function ProfileScreen() {
         },
         {
           id: '3',
-          title: 'Notifications',
+          title: 'Notifications & Alerts',
           icon: 'bell',
           screen: 'NotificationSettings',
           color: '#FF4B55', // Red/Pinkish

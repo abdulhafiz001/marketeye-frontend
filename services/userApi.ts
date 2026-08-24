@@ -9,6 +9,9 @@ export async function submitPrice(payload: {
   quantity_value?: number;
   quantity_unit?: string;
   notes?: string;
+  is_geoverified?: boolean;
+  latitude?: number;
+  longitude?: number;
 }) {
   const { data } = await api.post<
     ApiSuccess<{
@@ -17,11 +20,15 @@ export async function submitPrice(payload: {
         status: string;
         points_awarded: number;
         auto_approved: boolean;
+        is_geoverified?: boolean;
+        is_outlier?: boolean;
+        outlier_reason?: string | null;
+        trust_score?: number;
         quantity_value: number;
         quantity_unit: string | null;
         price_per_unit: number;
       };
-      user: { points: number };
+      user: { points: number; wallet_balance?: number };
     }>
   >('/prices/submit', payload);
   return data.data;
@@ -36,6 +43,9 @@ export async function submitPriceBatch(
     quantity_value?: number;
     quantity_unit?: string;
     notes?: string;
+    is_geoverified?: boolean;
+    latitude?: number;
+    longitude?: number;
   }>
 ) {
   const { data } = await api.post<

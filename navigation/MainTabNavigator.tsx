@@ -1,6 +1,9 @@
 /**
- * Main Tab Navigator
- * Dashboard, Markets, Compare, Leaderboard, Profile
+ * Main Tab Navigator (4 Modern Ergonomic Tabs)
+ * 1. Dashboard (Abuja Market Pulse, KPIs, Ticker, Categories, Recent)
+ * 2. Markets (Directory, Stall Views, Price Cards)
+ * 3. PriceWatch (Active Target Alert Rules & Notification History)
+ * 4. Basket (Multi-Item Shopping List Cost Optimizer & Arbitrage Compare)
  */
 
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -8,31 +11,40 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import React from 'react';
 import { Colors } from '../constants/colors';
+
+import AboutAppScreen from '../screens/main/AboutAppScreen';
 import AccountSettingsScreen from '../screens/main/AccountSettingsScreen';
-import AlertsScreen from '../screens/main/AlertsScreen';
+import BasketOptimizerScreen from '../screens/main/BasketOptimizerScreen';
 import CommodityDetailScreen from '../screens/main/CommodityDetailScreen';
 import CompareScreen from '../screens/main/CompareScreen';
 import DashboardScreen from '../screens/main/DashboardScreen';
+import HelpSupportScreen from '../screens/main/HelpSupportScreen';
 import InsightsScreen from '../screens/main/InsightsScreen';
 import LeaderboardScreen from '../screens/main/LeaderboardScreen';
 import MarketDetailScreen from '../screens/main/MarketDetailScreen';
 import MarketScreen from '../screens/main/MarketScreen';
 import NotificationSettingsScreen from '../screens/main/NotificationSettingsScreen';
+import PriceWatchScreen from '../screens/main/PriceWatchScreen';
 import ProfileScreen from '../screens/main/ProfileScreen';
-import HelpSupportScreen from '../screens/main/HelpSupportScreen';
-import AboutAppScreen from '../screens/main/AboutAppScreen';
 import SubmitPriceScreen from '../screens/main/SubmitPriceScreen';
 
 const Tab = createBottomTabNavigator();
-const Stack = createStackNavigator();
 const HomeStackNav = createStackNavigator();
+const MarketStackNav = createStackNavigator();
+const PriceWatchStackNav = createStackNavigator();
+const BasketStackNav = createStackNavigator();
+const ProfileStackNav = createStackNavigator();
 
 function HomeStack() {
   return (
     <HomeStackNav.Navigator screenOptions={{ headerShown: false }}>
       <HomeStackNav.Screen name="HomeMain" component={DashboardScreen} />
-      <HomeStackNav.Screen name="Alerts" component={AlertsScreen} />
       <HomeStackNav.Screen name="CommodityDetail" component={CommodityDetailScreen} />
+      <HomeStackNav.Screen name="Profile" component={ProfileStack} />
+      <HomeStackNav.Screen name="PriceWatch" component={PriceWatchScreen} />
+      <HomeStackNav.Screen name="Insights" component={InsightsScreen} />
+      <HomeStackNav.Screen name="Leaderboard" component={LeaderboardScreen} />
+      <HomeStackNav.Screen name="Compare" component={CompareScreen} />
       <HomeStackNav.Screen
         name="SubmitPrice"
         component={SubmitPriceScreen}
@@ -44,10 +56,10 @@ function HomeStack() {
 
 function MarketStack() {
   return (
-    <Stack.Navigator initialRouteName="MarketList" screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="MarketList" component={MarketScreen} />
-      <Stack.Screen name="MarketDetail" component={MarketDetailScreen} />
-      <Stack.Screen
+    <MarketStackNav.Navigator initialRouteName="MarketList" screenOptions={{ headerShown: false }}>
+      <MarketStackNav.Screen name="MarketList" component={MarketScreen} />
+      <MarketStackNav.Screen name="MarketDetail" component={MarketDetailScreen} />
+      <MarketStackNav.Screen
         name="CommodityDetail"
         component={CommodityDetailScreen}
         options={{
@@ -57,21 +69,54 @@ function MarketStack() {
           headerShown: true,
         }}
       />
-      <Stack.Screen
+      <MarketStackNav.Screen
         name="SubmitPrice"
         component={SubmitPriceScreen}
         options={{ presentation: 'modal' }}
       />
-    </Stack.Navigator>
+    </MarketStackNav.Navigator>
+  );
+}
+
+function PriceWatchStack() {
+  return (
+    <PriceWatchStackNav.Navigator screenOptions={{ headerShown: false }}>
+      <PriceWatchStackNav.Screen name="PriceWatchMain" component={PriceWatchScreen} />
+      <PriceWatchStackNav.Screen name="CommodityDetail" component={CommodityDetailScreen} />
+      <PriceWatchStackNav.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
+      <PriceWatchStackNav.Screen
+        name="SubmitPrice"
+        component={SubmitPriceScreen}
+        options={{ presentation: 'modal' }}
+      />
+    </PriceWatchStackNav.Navigator>
+  );
+}
+
+function BasketStack() {
+  return (
+    <BasketStackNav.Navigator screenOptions={{ headerShown: false }}>
+      <BasketStackNav.Screen name="BasketMain" component={BasketOptimizerScreen} />
+      <BasketStackNav.Screen name="Compare" component={CompareScreen} />
+      <BasketStackNav.Screen name="MarketDetail" component={MarketDetailScreen} />
+      <BasketStackNav.Screen name="CommodityDetail" component={CommodityDetailScreen} />
+      <BasketStackNav.Screen
+        name="SubmitPrice"
+        component={SubmitPriceScreen}
+        options={{ presentation: 'modal' }}
+      />
+    </BasketStackNav.Navigator>
   );
 }
 
 function ProfileStack() {
   return (
-    <Stack.Navigator>
-      <Stack.Screen name="ProfileMain" component={ProfileScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="CommodityDetail" component={CommodityDetailScreen} />
-      <Stack.Screen
+    <ProfileStackNav.Navigator>
+      <ProfileStackNav.Screen name="ProfileMain" component={ProfileScreen} options={{ headerShown: false }} />
+      <ProfileStackNav.Screen name="Leaderboard" component={LeaderboardScreen} options={{ title: 'Leaderboard' }} />
+      <ProfileStackNav.Screen name="Insights" component={InsightsScreen} options={{ title: 'Market Insights' }} />
+      <ProfileStackNav.Screen name="CommodityDetail" component={CommodityDetailScreen} />
+      <ProfileStackNav.Screen
         name="AccountSettings"
         component={AccountSettingsScreen}
         options={{
@@ -80,7 +125,7 @@ function ProfileStack() {
           headerTintColor: Colors.primary.white,
         }}
       />
-      <Stack.Screen
+      <ProfileStackNav.Screen
         name="NotificationSettings"
         component={NotificationSettingsScreen}
         options={{
@@ -89,22 +134,22 @@ function ProfileStack() {
           headerTintColor: Colors.primary.white,
         }}
       />
-      <Stack.Screen
+      <ProfileStackNav.Screen
         name="HelpSupport"
         component={HelpSupportScreen}
         options={{ headerShown: false }}
       />
-      <Stack.Screen
+      <ProfileStackNav.Screen
         name="AboutApp"
         component={AboutAppScreen}
         options={{ headerShown: false }}
       />
-      <Stack.Screen
+      <ProfileStackNav.Screen
         name="SubmitPrice"
         component={SubmitPriceScreen}
         options={{ presentation: 'modal' }}
       />
-    </Stack.Navigator>
+    </ProfileStackNav.Navigator>
   );
 }
 
@@ -123,6 +168,8 @@ export default function MainTabNavigator() {
         },
         tabBarLabelStyle: {
           marginBottom: 4,
+          fontWeight: '700',
+          fontSize: 11,
         },
         headerShown: false,
       }}
@@ -131,6 +178,7 @@ export default function MainTabNavigator() {
         name="Dashboard"
         component={HomeStack}
         options={{
+          tabBarLabel: 'Home',
           tabBarIcon: ({ color, focused }) => (
             <MaterialCommunityIcons
               name={focused ? 'view-dashboard' : 'view-dashboard-outline'}
@@ -140,10 +188,11 @@ export default function MainTabNavigator() {
           ),
         }}
       />
+
       <Tab.Screen
         name="Markets"
         component={MarketStack}
-        listeners={({ navigation, route }) => ({
+        listeners={({ navigation }) => ({
           tabPress: (e) => {
             const state = navigation.getState();
             const marketTab = state.routes.find((r) => r.name === 'Markets');
@@ -163,48 +212,39 @@ export default function MainTabNavigator() {
           },
         })}
         options={{
+          tabBarLabel: 'Markets',
           tabBarIcon: ({ color, focused }) => (
             <MaterialCommunityIcons name={focused ? 'store' : 'store-outline'} size={24} color={color} />
           ),
         }}
       />
+
       <Tab.Screen
-        name="Compare"
-        component={CompareScreen}
+        name="PriceWatch"
+        component={PriceWatchStack}
         options={{
-          tabBarIcon: ({ color, focused }) => (
-            <MaterialCommunityIcons name={focused ? 'scale-balance' : 'scale-balance'} size={24} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Insights"
-        component={InsightsScreen}
-        options={{
+          tabBarLabel: 'Price Watch',
           tabBarIcon: ({ color, focused }) => (
             <MaterialCommunityIcons
-              name={focused ? 'chart-timeline-variant' : 'chart-line'}
+              name={focused ? 'bell-ring' : 'bell-ring-outline'}
               size={24}
               color={color}
             />
           ),
         }}
       />
+
       <Tab.Screen
-        name="Leaderboard"
-        component={LeaderboardScreen}
+        name="Basket"
+        component={BasketStack}
         options={{
+          tabBarLabel: 'Smart Basket',
           tabBarIcon: ({ color, focused }) => (
-            <MaterialCommunityIcons name={focused ? 'trophy' : 'trophy-outline'} size={24} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Profile"
-        component={ProfileStack}
-        options={{
-          tabBarIcon: ({ color, focused }) => (
-            <MaterialCommunityIcons name={focused ? 'account' : 'account-outline'} size={24} color={color} />
+            <MaterialCommunityIcons
+              name={focused ? 'cart' : 'cart-outline'}
+              size={24}
+              color={color}
+            />
           ),
         }}
       />
