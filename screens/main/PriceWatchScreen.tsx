@@ -26,6 +26,7 @@ import {
   deleteServerAlert,
   fetchServerAlerts,
   updateServerAlert,
+  acknowledgeServerAlert,
 } from '@/services/alertsApi';
 import {
   requestDeviceNotificationPermission,
@@ -46,6 +47,8 @@ export default function PriceWatchScreen() {
   const removeAlert = useStore((state) => state.removeAlert);
   const markNotificationRead = useStore((state) => state.markNotificationRead);
   const markAllNotificationsRead = useStore((state) => state.markAllNotificationsRead);
+  const acknowledgeNotification = useStore((state) => state.acknowledgeNotification);
+  const acknowledgeAlert = useStore((state) => state.acknowledgeAlert);
   const removeNotification = useStore((state) => state.removeNotification);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -56,7 +59,25 @@ export default function PriceWatchScreen() {
     (async () => {
       try {
         const serverAlerts = await fetchServerAlerts();
-        setStoreState({ alerts: serverAlerts });
+        const currentLocal = getStoreState().alerts;
+        const merged = serverAlerts.map((sa) => {
+          const local = currentLocal.find((la) => la.id === sa.id);
+          if (!local) return sa;
+
+          // Preserve whichever has the newer lastTriggeredAt
+          let latestTriggered = sa.lastTriggeredAt;
+          if (local.lastTriggeredAt) {
+            if (!sa.lastTriggeredAt || new Date(local.lastTriggeredAt).getTime() > new Date(sa.lastTriggeredAt).getTime()) {
+              latestTriggered = local.lastTriggeredAt;
+            }
+          }
+          return {
+            ...sa,
+            lastTriggeredAt: latestTriggered,
+            lastKnownPrice: sa.lastKnownPrice ?? local.lastKnownPrice,
+          };
+        });
+        setStoreState({ alerts: merged });
         await syncExpoPushTokenWithServer();
       } catch {
         // Keep local cache if sync fails.
@@ -159,6 +180,20 @@ export default function PriceWatchScreen() {
     setModalOpen(false);
   };
 
+  const handleGotIt = async (item: InboxNotification) => {
+    acknowledgeNotification(item.id);
+    if (item.alertId) {
+      acknowledgeAlert(item.alertId, 'acknowledge');
+      if (isAuthenticated && /^\d+$/.test(item.alertId)) {
+        try {
+          await acknowledgeServerAlert(item.alertId, 'acknowledge');
+        } catch {
+          // Keep local state updated
+        }
+      }
+    }
+  };
+
   const renderRule = (item: PriceAlertRule) => {
     const when =
       item.condition === 'below'
@@ -169,21 +204,53 @@ export default function PriceWatchScreen() {
         ? `Current Price: ₦${item.lastKnownPrice.toLocaleString()}`
         : 'Awaiting market update';
 
+    const isHit =
+      typeof item.lastKnownPrice === 'number' &&
+      Number.isFinite(item.lastKnownPrice) &&
+      (item.condition === 'below'
+        ? item.lastKnownPrice <= item.targetPrice
+        : item.lastKnownPrice >= item.targetPrice);
+
     return (
       <View key={item.id} style={[styles.ruleCard, !item.isActive && styles.ruleCardMuted]}>
         <View style={styles.ruleLeft}>
-          <View style={styles.ruleIconWrap}>
+          <View style={[styles.ruleIconWrap, isHit && styles.ruleIconWrapHit]}>
             <MaterialCommunityIcons
-              name={item.condition === 'below' ? 'trending-down' : 'trending-up'}
+              name={isHit ? 'bell-check' : item.condition === 'below' ? 'trending-down' : 'trending-up'}
               size={24}
-              color={item.condition === 'below' ? '#16A34A' : '#DC2626'}
+              color={isHit ? '#059669' : item.condition === 'below' ? '#16A34A' : '#DC2626'}
             />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.ruleProduct}>{item.commodityName}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <Text style={styles.ruleProduct}>{item.commodityName}</Text>
+              {isHit && (
+                <View style={styles.hitPill}>
+                  <Text style={styles.hitPillText}>Target Met</Text>
+                </View>
+              )}
+            </View>
             <Text style={styles.ruleMarket}>{item.marketName}</Text>
             <Text style={styles.ruleHint}>{when}</Text>
             <Text style={styles.rulePx}>{px}</Text>
+
+            {isHit && item.isActive && (
+              <TouchableOpacity
+                style={styles.ruleGotItBtn}
+                onPress={async () => {
+                  acknowledgeAlert(item.id, 'acknowledge');
+                  if (isAuthenticated && /^\d+$/.test(item.id)) {
+                    try {
+                      await acknowledgeServerAlert(item.id, 'acknowledge');
+                    } catch {}
+                  }
+                }}
+                activeOpacity={0.8}
+              >
+                <MaterialCommunityIcons name="check-circle-outline" size={14} color={Colors.primary.deepBlue} />
+                <Text style={styles.ruleGotItText}>Got it · Mute repeats</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -224,33 +291,63 @@ export default function PriceWatchScreen() {
     );
   };
 
-  const renderInboxItem = ({ item }: { item: InboxNotification }) => (
-    <TouchableOpacity
-      style={[styles.inboxCard, item.read ? styles.inboxCardRead : styles.inboxCardUnread]}
-      activeOpacity={0.88}
-      onPress={() => {
-        if (!item.read) markNotificationRead(item.id);
-      }}
-    >
-      <View style={[styles.strip, item.read ? styles.stripRead : styles.stripNew]} />
-      <View style={styles.inboxInner}>
-        <View style={{ flex: 1, paddingRight: 8 }}>
-          <Text style={[styles.inboxText, item.read && styles.inboxTextMuted]}>{item.message}</Text>
-          <Text style={styles.inboxTime}>
-            {new Date(item.createdAt).toLocaleString(undefined, {
-              hour: '2-digit',
-              minute: '2-digit',
-              day: 'numeric',
-              month: 'short',
-            })}
-          </Text>
+  const renderInboxItem = ({ item }: { item: InboxNotification }) => {
+    const isAcknowledged = item.acknowledged || (item.read && !item.alertId);
+
+    return (
+      <View style={[styles.inboxCard, item.read ? styles.inboxCardRead : styles.inboxCardUnread]}>
+        <View style={[styles.strip, item.read ? styles.stripRead : styles.stripNew]} />
+        <View style={styles.inboxInner}>
+          <TouchableOpacity
+            style={{ flex: 1, paddingRight: 8 }}
+            activeOpacity={0.88}
+            onPress={() => {
+              if (!item.read) markNotificationRead(item.id);
+            }}
+          >
+            <View style={styles.inboxHeaderRow}>
+              <View style={styles.tagWrap}>
+                <MaterialCommunityIcons name="bell-ring-outline" size={13} color={Colors.primary.deepBlue} />
+                <Text style={styles.inboxCategoryTag}>Price Target Alert</Text>
+              </View>
+              <Text style={styles.inboxTime}>
+                {new Date(item.createdAt).toLocaleString(undefined, {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  day: 'numeric',
+                  month: 'short',
+                })}
+              </Text>
+            </View>
+
+            <Text style={[styles.inboxText, item.read && styles.inboxTextMuted]}>{item.message}</Text>
+
+            <View style={styles.inboxActionRow}>
+              {!isAcknowledged ? (
+                <TouchableOpacity
+                  style={styles.gotItBtn}
+                  onPress={() => handleGotIt(item)}
+                  activeOpacity={0.8}
+                >
+                  <MaterialCommunityIcons name="check-circle-outline" size={16} color="#FFF" />
+                  <Text style={styles.gotItBtnText}>Got it</Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.acknowledgedBadge}>
+                  <MaterialCommunityIcons name="check" size={13} color="#059669" />
+                  <Text style={styles.acknowledgedText}>Got it · Acknowledged</Text>
+                </View>
+              )}
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity hitSlop={10} onPress={() => removeNotification(item.id)} style={styles.trashBtn}>
+            <MaterialCommunityIcons name="trash-can-outline" size={18} color="#9CA3AF" />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity hitSlop={10} onPress={() => removeNotification(item.id)}>
-          <MaterialCommunityIcons name="trash-can-outline" size={18} color="#9CA3AF" />
-        </TouchableOpacity>
       </View>
-    </TouchableOpacity>
-  );
+    );
+  };
 
   const canSubmit = Boolean(selectedMarketRow && targetPrice.trim());
 
@@ -600,9 +697,41 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   ruleProduct: { fontWeight: '900', fontSize: 16, color: '#0F172A' },
+  ruleIconWrapHit: { backgroundColor: '#ECFDF5' },
+  hitPill: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+  },
+  hitPillText: {
+    color: '#15803D',
+    fontSize: 11,
+    fontWeight: '800',
+  },
   ruleMarket: { color: '#64748B', fontWeight: '700', fontSize: 12, marginTop: 2 },
   ruleHint: { color: Colors.primary.deepBlue, fontWeight: '700', fontSize: 13, marginTop: 4 },
   rulePx: { color: '#94A3B8', fontSize: 11, fontWeight: '600', marginTop: 2 },
+  ruleGotItBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  ruleGotItText: {
+    color: Colors.primary.deepBlue,
+    fontSize: 11,
+    fontWeight: '800',
+  },
   ruleRight: { alignItems: 'flex-end', gap: 10, marginLeft: 12 },
   deleteBtn: { padding: 4 },
   emptyWrap: {
@@ -645,10 +774,75 @@ const styles = StyleSheet.create({
   strip: { width: 5 },
   stripNew: { backgroundColor: Colors.primary.deepBlue },
   stripRead: { backgroundColor: '#CBD5E1' },
-  inboxInner: { flex: 1, flexDirection: 'row', alignItems: 'center', padding: Spacing.md },
+  inboxInner: { flex: 1, flexDirection: 'row', alignItems: 'flex-start', padding: Spacing.md },
+  inboxHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  tagWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  inboxCategoryTag: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: Colors.primary.deepBlue,
+  },
   inboxText: { fontWeight: '700', color: '#0F172A', fontSize: 14, lineHeight: 20 },
   inboxTextMuted: { color: '#64748B', fontWeight: '500' },
-  inboxTime: { marginTop: 6, fontSize: 11, fontWeight: '600', color: '#94A3B8' },
+  inboxTime: { fontSize: 11, fontWeight: '600', color: '#94A3B8' },
+  inboxActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+    gap: 8,
+  },
+  gotItBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.primary.deepBlue,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    shadowColor: Colors.primary.deepBlue,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  gotItBtnText: {
+    color: '#FFF',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  acknowledgedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  acknowledgedText: {
+    color: '#059669',
+    fontWeight: '700',
+    fontSize: 11,
+  },
+  trashBtn: {
+    padding: 6,
+    marginTop: 2,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.55)',

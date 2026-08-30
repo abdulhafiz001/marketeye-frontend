@@ -12,6 +12,7 @@ export type AuthUser = {
   role: string;
   points: number;
   wallet_balance?: number;
+  submission_streak?: number;
   verified: boolean;
 };
 
@@ -74,6 +75,11 @@ export async function meRequest() {
   return data.data.user;
 }
 
+export async function updateProfileRequest(payload: { name: string; email: string; phone?: string }) {
+  const { data } = await api.patch<ApiSuccess<{ user: AuthUser }>>('/auth/me', payload);
+  return data.data.user;
+}
+
 export function mapAuthUserToAppUser(u: AuthUser): User {
   return {
     id: String(u.id),
@@ -84,6 +90,7 @@ export function mapAuthUserToAppUser(u: AuthUser): User {
     role: u.role,
     points: u.points,
     walletBalance: u.wallet_balance ?? 0,
+    submission_streak: u.submission_streak ?? 0,
     verified: u.verified,
   };
 }

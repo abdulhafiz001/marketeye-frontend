@@ -52,7 +52,24 @@ export default function NotificationSettingsScreen() {
     (async () => {
       try {
         const serverAlerts = await fetchServerAlerts();
-        setStoreState({ alerts: serverAlerts });
+        const currentLocal = getStoreState().alerts;
+        const merged = serverAlerts.map((sa) => {
+          const local = currentLocal.find((la) => la.id === sa.id);
+          if (!local) return sa;
+
+          let latestTriggered = sa.lastTriggeredAt;
+          if (local.lastTriggeredAt) {
+            if (!sa.lastTriggeredAt || new Date(local.lastTriggeredAt).getTime() > new Date(sa.lastTriggeredAt).getTime()) {
+              latestTriggered = local.lastTriggeredAt;
+            }
+          }
+          return {
+            ...sa,
+            lastTriggeredAt: latestTriggered,
+            lastKnownPrice: sa.lastKnownPrice ?? local.lastKnownPrice,
+          };
+        });
+        setStoreState({ alerts: merged });
         await syncExpoPushTokenWithServer();
       } catch {
         // Keep local cache if sync fails.

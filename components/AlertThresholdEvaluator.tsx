@@ -1,20 +1,26 @@
 import React from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { fetchProductDetail } from '@/services/catalogApi';
+import { acknowledgeServerAlert } from '@/services/alertsApi';
 import { showPriceDeviceNotification } from '@/services/deviceNotifications';
 import { getStoreState, useStore } from '@/store/useStore';
 import type { Alert } from '@/types';
 
-const COOLDOWN_MS = 6 * 60 * 60 * 1000;
+// 24 hours cooldown to prevent recurring spam pings for the same price condition
+const COOLDOWN_MS = 24 * 60 * 60 * 1000;
 const TICK_MS = 120_000;
+
+// In-memory session tracking to guarantee no duplicate pings within the session
+const sessionTriggeredMap = new Map<string, number>();
 
 /**
  * Runs in the background: checks active threshold alerts vs latest market prices,
- * pushes inbox notifications when crossed (with cooldown).
+ * pushes inbox notifications when crossed (with cooldown and server persistence).
  */
 export function AlertThresholdEvaluator() {
   const alertsLen = useStore((s) => s.alerts.length);
   const enabled = useStore((s) => s.alertsEnabled);
+  const isAuthenticated = useStore((s) => s.isAuthenticated);
   const running = React.useRef(false);
 
   const run = React.useCallback(async () => {
@@ -50,19 +56,35 @@ export function AlertThresholdEvaluator() {
               rule.condition === 'below'
                 ? price <= rule.targetPrice
                 : price >= rule.targetPrice;
+
             const lastTs = rule.lastTriggeredAt ? new Date(rule.lastTriggeredAt).getTime() : 0;
-            if (hit && Date.now() - lastTs > COOLDOWN_MS) {
+            const sessionLast = sessionTriggeredMap.get(rule.id) || 0;
+            const effectiveLast = Math.max(lastTs, sessionLast);
+
+            if (hit && Date.now() - effectiveLast > COOLDOWN_MS) {
+              const nowIso = new Date().toISOString();
+              sessionTriggeredMap.set(rule.id, Date.now());
+
               const label = rule.condition === 'below' ? 'went lower to around' : 'went higher to around';
               const mname = rule.marketName || 'that market';
               const message = `${rule.commodityName} at ${mname} ${label} ₦${Number(price).toLocaleString()} (your alert was ₦${Number(rule.targetPrice).toLocaleString()}).`;
+
               getStoreState().addNotification({
                 id: `price:${rule.id}:${Date.now()}`,
+                alertId: String(rule.id),
                 message,
                 read: false,
-                createdAt: new Date().toISOString(),
+                acknowledged: false,
+                createdAt: nowIso,
               });
+
               await showPriceDeviceNotification('Price alert', message);
-              getStoreState().patchAlert(rule.id, { lastTriggeredAt: new Date().toISOString() });
+              getStoreState().patchAlert(rule.id, { lastTriggeredAt: nowIso, lastKnownPrice: price });
+
+              // Persist trigger timestamp to backend if authenticated
+              if (isAuthenticated && /^\d+$/.test(rule.id)) {
+                acknowledgeServerAlert(rule.id, 'acknowledge').catch(() => {});
+              }
             }
           }
         } catch {
@@ -72,7 +94,7 @@ export function AlertThresholdEvaluator() {
     } finally {
       running.current = false;
     }
-  }, []);
+  }, [isAuthenticated]);
 
   React.useEffect(() => {
     if (!enabled) return;

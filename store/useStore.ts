@@ -63,6 +63,8 @@ interface AppState {
   removeNotification: (id: string) => void;
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
+  acknowledgeNotification: (id: string) => void;
+  acknowledgeAlert: (alertId: string, action?: 'acknowledge' | 'deactivate') => void;
   setMarketWatchlist: (items: MarketWatchItem[]) => void;
   addMarketWatch: (item: MarketWatchItem) => void;
   removeMarketWatch: (id: string) => void;
@@ -178,7 +180,10 @@ const store: ReturnType<typeof createSimpleStore<AppState>> = createSimpleStore<
 
   addNotification: (item: InboxNotification) => {
     const state = store.getState();
-    store.setState({ notifications: [item, ...state.notifications] });
+    if (state.notifications.some((n) => n.id === item.id)) {
+      return;
+    }
+    store.setState({ notifications: [item, ...state.notifications.slice(0, 49)] });
   },
 
   removeNotification: (id: string) => {
@@ -199,6 +204,44 @@ const store: ReturnType<typeof createSimpleStore<AppState>> = createSimpleStore<
     const state = store.getState();
     store.setState({
       notifications: state.notifications.map((n) => ({ ...n, read: true })),
+    });
+  },
+
+  acknowledgeNotification: (id: string) => {
+    const state = store.getState();
+    const notif = state.notifications.find((n) => n.id === id);
+    const alertId = notif?.alertId;
+    const nowIso = new Date().toISOString();
+    store.setState({
+      notifications: state.notifications.map((n) =>
+        n.id === id ? { ...n, read: true, acknowledged: true } : n
+      ),
+      ...(alertId
+        ? {
+            alerts: state.alerts.map((a) =>
+              a.id === alertId ? { ...a, lastTriggeredAt: nowIso } : a
+            ),
+          }
+        : {}),
+    });
+  },
+
+  acknowledgeAlert: (alertId: string, action: 'acknowledge' | 'deactivate' = 'acknowledge') => {
+    const state = store.getState();
+    const nowIso = new Date().toISOString();
+    store.setState({
+      alerts: state.alerts.map((a) =>
+        a.id === alertId
+          ? {
+              ...a,
+              lastTriggeredAt: nowIso,
+              isActive: action === 'deactivate' ? false : a.isActive,
+            }
+          : a
+      ),
+      notifications: state.notifications.map((n) =>
+        n.alertId === alertId ? { ...n, read: true, acknowledged: true } : n
+      ),
     });
   },
 

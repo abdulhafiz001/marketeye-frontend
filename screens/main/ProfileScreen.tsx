@@ -254,17 +254,22 @@ export default function ProfileScreen() {
       >
         {/* --- Header Section --- */}
         <View style={styles.headerContainer}>
-          <View style={styles.avatarWrapper}>
+          <TouchableOpacity
+            style={styles.avatarWrapper}
+            onPress={() => navigation.navigate('AccountSettings' as never)}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Edit account settings"
+          >
             <View style={styles.avatarContainer}>
               <Text style={styles.avatarText}>
                 {getInitials(user?.name || 'User')}
               </Text>
             </View>
-            {/* Edit Badge (Optional Visual) */}
             <View style={styles.editBadge}>
               <MaterialCommunityIcons name="pencil" size={12} color="#FFF" />
             </View>
-          </View>
+          </TouchableOpacity>
 
           <Text style={styles.userName}>{user?.name || 'Guest User'}</Text>
           <Text style={styles.userEmail}>{user?.email || 'Sign in to sync data'}</Text>

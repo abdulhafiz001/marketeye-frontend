@@ -11,6 +11,7 @@ export interface User {
   role?: string;
   points?: number;
   walletBalance?: number;
+  submission_streak?: number;
   verified?: boolean;
 }
 
@@ -76,6 +77,8 @@ export interface InboxNotification {
   message: string;
   read: boolean;
   createdAt: string;
+  alertId?: string;
+  acknowledged?: boolean;
 }
 
 export interface MarketWatchItem {

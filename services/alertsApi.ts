@@ -52,13 +52,29 @@ export async function createServerAlert(payload: {
 
 export async function updateServerAlert(
   id: string | number,
-  payload: Partial<{ target_price: number; condition: 'above' | 'below'; is_active: boolean }>
+  payload: Partial<{
+    target_price: number;
+    condition: 'above' | 'below';
+    is_active: boolean;
+    last_triggered_at: string | null;
+    last_known_price: number | null;
+  }>
 ): Promise<Alert> {
   const body: Record<string, unknown> = { ...payload };
   if (payload.condition) {
     body.condition = payload.condition.toUpperCase();
   }
   const { data } = await api.put<ApiSuccess<{ alert: ServerAlert }>>(`/user/price-alerts/${id}`, body);
+  return mapAlert(data.data.alert);
+}
+
+export async function acknowledgeServerAlert(
+  id: string | number,
+  action: 'acknowledge' | 'deactivate' = 'acknowledge'
+): Promise<Alert> {
+  const { data } = await api.post<ApiSuccess<{ alert: ServerAlert }>>(`/user/price-alerts/${id}/acknowledge`, {
+    action,
+  });
   return mapAlert(data.data.alert);
 }
 
