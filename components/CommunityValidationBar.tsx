@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,14 @@ import {
   Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useQueryClient } from '@tanstack/react-query';
 import * as Location from 'expo-location';
 import { Colors, Spacing, Typography } from '@/constants/colors';
 import { validateCommunityPrice, type CommunityValidationResponse } from '@/services/pricesApi';
 import { useStore } from '@/store/useStore';
+
+// Persistent in-memory session cache so user votes are never lost across screen transitions
+const localVoteMemory = new Map<string, 'CONFIRM' | 'DISPUTE'>();
 
 interface CommunityValidationBarProps {
   productId: number;
@@ -64,13 +68,38 @@ export function CommunityValidationBar({
   const setUser = useStore((state) => state.setUser);
   const isAuthenticated = useStore((state) => state.isAuthenticated);
 
+  const queryClient = useQueryClient();
+  const voteKey = `${productId}:${marketId}`;
+
   const [currentScore, setCurrentScore] = useState(confidenceScore);
   const [currentLevel, setCurrentLevel] = useState(confidenceLevel);
   const [confirms, setConfirms] = useState(confirmationsCount);
   const [disputes, setDisputes] = useState(disputesCount);
-  const [activeAction, setActiveAction] = useState<'CONFIRM' | 'DISPUTE' | null>(userAction);
+  const [activeAction, setActiveAction] = useState<'CONFIRM' | 'DISPUTE' | null>(
+    userAction || localVoteMemory.get(voteKey) || null
+  );
   const [loadingAction, setLoadingAction] = useState<'confirm' | 'dispute' | null>(null);
   const [infoModalOpen, setInfoModalOpen] = useState(false);
+
+  // Sync state when props arrive or update
+  useEffect(() => {
+    if (userAction !== undefined && userAction !== null) {
+      localVoteMemory.set(voteKey, userAction);
+      setActiveAction(userAction);
+    } else {
+      const cached = localVoteMemory.get(voteKey);
+      if (cached) {
+        setActiveAction(cached);
+      }
+    }
+  }, [userAction, voteKey]);
+
+  useEffect(() => {
+    setCurrentScore(confidenceScore);
+    setCurrentLevel(confidenceLevel);
+    setConfirms(confirmationsCount);
+    setDisputes(disputesCount);
+  }, [confidenceScore, confidenceLevel, confirmationsCount, disputesCount]);
 
   const handleVote = async (action: 'confirm' | 'dispute') => {
     if (!isAuthenticated) {
@@ -89,12 +118,14 @@ export function CommunityValidationBar({
       setConfirms((c) => c + 1);
       if (isSwitch) setDisputes((d) => Math.max(0, d - 1));
       setActiveAction('CONFIRM');
+      localVoteMemory.set(voteKey, 'CONFIRM');
       setCurrentScore((s) => Math.min(100, s + 6));
     } else {
       if (activeAction === 'DISPUTE') return; // already disputed
       setDisputes((d) => d + 1);
       if (isSwitch) setConfirms((c) => Math.max(0, c - 1));
       setActiveAction('DISPUTE');
+      localVoteMemory.set(voteKey, 'DISPUTE');
       setCurrentScore((s) => Math.max(15, s - 12));
     }
 
@@ -137,9 +168,19 @@ export function CommunityValidationBar({
         setConfirms(res.confidence.confirmations_count);
         setDisputes(res.confidence.disputes_count);
       }
+
+      // Invalidate relevant caches so navigating back or to other screens shows fresh state
+      queryClient.invalidateQueries({ queryKey: ['market-prices', marketId] });
+      queryClient.invalidateQueries({ queryKey: ['product-detail', productId] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
     } catch (e: any) {
       // Rollback on complete network failure
       setActiveAction(previousAction);
+      if (previousAction) {
+        localVoteMemory.set(voteKey, previousAction);
+      } else {
+        localVoteMemory.delete(voteKey);
+      }
       const msg = e?.response?.data?.message || 'Could not record your vote. Try again.';
       Alert.alert('Validation error', msg);
     } finally {

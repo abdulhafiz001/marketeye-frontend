@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import NetInfo from '@react-native-community/netinfo';
 import * as Location from 'expo-location';
 
@@ -47,6 +47,7 @@ function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
 export default function SubmitPriceScreen() {
   const navigation = useNavigation();
   const route = useRoute<any>();
+  const queryClient = useQueryClient();
   const isAuthenticated = useStore((s) => s.isAuthenticated);
   const setUser = useStore((s) => s.setUser);
   const user = useStore((s) => s.user);
@@ -195,6 +196,17 @@ export default function SubmitPriceScreen() {
           });
         }
       }
+
+      // Invalidate queries so prices immediately appear across market detail, product detail, and dashboard
+      queryClient.invalidateQueries({ queryKey: ['market-prices'] });
+      queryClient.invalidateQueries({ queryKey: ['product-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] });
+      queryClient.invalidateQueries({ queryKey: ['markets'] });
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      queryClient.invalidateQueries({ queryKey: ['wallet'] });
+      queryClient.invalidateQueries({ queryKey: ['my-submissions'] });
+      queryClient.invalidateQueries({ queryKey: ['insights'] });
+
       Animated.spring(scale, { toValue: 1, useNativeDriver: true, friction: 6 }).start();
       void flushOfflineQueue();
     },

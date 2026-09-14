@@ -61,7 +61,12 @@ export function AlertThresholdEvaluator() {
             const sessionLast = sessionTriggeredMap.get(rule.id) || 0;
             const effectiveLast = Math.max(lastTs, sessionLast);
 
-            if (hit && Date.now() - effectiveLast > COOLDOWN_MS) {
+            const isInsideCooldown = effectiveLast > 0 && (Date.now() - effectiveLast < COOLDOWN_MS);
+            const hasExistingUnread = getStoreState().notifications.some(
+              (n) => n.alertId === String(rule.id) && !n.read && (Date.now() - new Date(n.createdAt).getTime() < COOLDOWN_MS)
+            );
+
+            if (hit && !isInsideCooldown && !hasExistingUnread) {
               const nowIso = new Date().toISOString();
               sessionTriggeredMap.set(rule.id, Date.now());
 
@@ -78,7 +83,11 @@ export function AlertThresholdEvaluator() {
                 createdAt: nowIso,
               });
 
-              await showPriceDeviceNotification('Price alert', message);
+              await showPriceDeviceNotification('Price alert', message, {
+                screen: 'PriceWatch',
+                initialTab: 'inbox',
+                alertId: rule.id,
+              });
               getStoreState().patchAlert(rule.id, { lastTriggeredAt: nowIso, lastKnownPrice: price });
 
               // Persist trigger timestamp to backend if authenticated

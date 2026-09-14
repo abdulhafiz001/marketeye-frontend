@@ -61,6 +61,54 @@ export default function RootLayout() {
     };
   }, []);
 
+  // Deep-link to Notification screen when a push notification is tapped
+  useEffect(() => {
+    let subResponse: { remove: () => void } | null = null;
+    let isMounted = true;
+
+    (async () => {
+      try {
+        const Notifications = await import('expo-notifications');
+        if (!isMounted) return;
+
+        subResponse = Notifications.addNotificationResponseReceivedListener((response) => {
+          const data = response.notification.request.content.data;
+          if (navigationRef.current) {
+            try {
+              navigationRef.current.navigate('Main', {
+                screen: 'PriceWatch',
+                params: { initialTab: 'inbox', alertId: data?.alertId || data?.alert_id },
+              });
+            } catch {
+              try {
+                navigationRef.current.navigate('PriceWatch', { initialTab: 'inbox' });
+              } catch {}
+            }
+          }
+        });
+
+        const lastResp = await Notifications.getLastNotificationResponseAsync();
+        if (lastResp && isMounted && navigationRef.current) {
+          setTimeout(() => {
+            try {
+              navigationRef.current?.navigate('Main', {
+                screen: 'PriceWatch',
+                params: { initialTab: 'inbox' },
+              });
+            } catch {}
+          }, 800);
+        }
+      } catch {
+        // Ignored if expo-notifications is unavailable
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+      subResponse?.remove();
+    };
+  }, []);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>

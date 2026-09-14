@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 
 import { useStore, getStoreState, setStoreState } from '@/store/useStore';
@@ -36,7 +36,15 @@ import type { Alert as PriceAlertRule, InboxNotification } from '@/types';
 
 export default function PriceWatchScreen() {
   const navigation = useNavigation<any>();
-  const [activeTab, setActiveTab] = useState<'alerts' | 'inbox'>('alerts');
+  const route = useRoute<any>();
+  const initialTab = (route.params?.initialTab || route.params?.tab || 'alerts') as 'alerts' | 'inbox';
+  const [activeTab, setActiveTab] = useState<'alerts' | 'inbox'>(initialTab);
+
+  useEffect(() => {
+    if (route.params?.initialTab || route.params?.tab) {
+      setActiveTab(route.params.initialTab || route.params.tab);
+    }
+  }, [route.params?.initialTab, route.params?.tab]);
 
   const alerts = useStore((state) => state.alerts);
   const notifications = useStore((state) => state.notifications);

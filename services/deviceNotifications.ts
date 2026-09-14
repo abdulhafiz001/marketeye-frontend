@@ -61,7 +61,11 @@ export async function requestDeviceNotificationPermission(): Promise<boolean> {
   return requested.granted;
 }
 
-export async function showPriceDeviceNotification(title: string, body: string): Promise<void> {
+export async function showPriceDeviceNotification(
+  title: string,
+  body: string,
+  data?: Record<string, any>
+): Promise<void> {
   const Notifications = await getNotifications();
   if (!Notifications) {
     return;
@@ -74,6 +78,7 @@ export async function showPriceDeviceNotification(title: string, body: string): 
     content: {
       title,
       body,
+      data: data ?? { screen: 'PriceWatch', initialTab: 'inbox' },
       sound: true,
       ...(Platform.OS === 'android' ? { channelId: PRICE_ALERT_CHANNEL_ID } : {}),
     },
