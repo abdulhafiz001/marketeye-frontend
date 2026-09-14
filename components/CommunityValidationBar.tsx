@@ -10,9 +10,9 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
-import * as Location from 'expo-location';
 import { Colors, Spacing, Typography } from '@/constants/colors';
 import { validateCommunityPrice, type CommunityValidationResponse } from '@/services/pricesApi';
+import { getCurrentUserLocation } from '@/services/locationService';
 import { useStore } from '@/store/useStore';
 
 // Persistent in-memory session cache so user votes are never lost across screen transitions
@@ -132,19 +132,9 @@ export function CommunityValidationBar({
     setLoadingAction(action);
 
     try {
-      let lat: number | null = null;
-      let lng: number | null = null;
-
-      try {
-        const { status } = await Location.getForegroundPermissionsAsync();
-        if (status === 'granted') {
-          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-          lat = loc.coords.latitude;
-          lng = loc.coords.longitude;
-        }
-      } catch {
-        // Continue without coordinates
-      }
+      const coords = await getCurrentUserLocation();
+      const lat = coords?.latitude ?? null;
+      const lng = coords?.longitude ?? null;
 
       const res = await validateCommunityPrice({
         product_id: productId,

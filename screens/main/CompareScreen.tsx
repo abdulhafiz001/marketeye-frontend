@@ -11,23 +11,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
-import * as Location from 'expo-location';
+import { getCurrentUserLocation, calculateHaversineDistanceKm } from '@/services/locationService';
 import { fetchProducts } from '@/services/catalogApi';
 import { fetchCompare } from '@/services/pricesApi';
 import { Colors, Spacing, Typography } from '@/constants/colors';
-
-function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
-  const R = 6371;
-  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-  const dLon = ((b.lng - a.lng) * Math.PI) / 180;
-  const lat1 = (a.lat * Math.PI) / 180;
-  const lat2 = (b.lat * Math.PI) / 180;
-  const x =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(lat1) * Math.cos(lat2);
-  const c = 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
-  return R * c;
-}
 
 export default function CompareScreen() {
   const [q, setQ] = useState('');
@@ -38,10 +25,14 @@ export default function CompareScreen() {
 
   React.useEffect(() => {
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') return;
-      const pos = await Location.getCurrentPositionAsync({});
-      setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      try {
+        const coords = await getCurrentUserLocation();
+        if (coords) {
+          setUserLoc({ lat: coords.latitude, lng: coords.longitude });
+        }
+      } catch {
+        // Location optional
+      }
     })();
   }, []);
 
@@ -135,7 +126,12 @@ export default function CompareScreen() {
               typeof item.market.lat === 'number' &&
               typeof item.market.lng === 'number'
             ) {
-              const km = distanceKm(userLoc, { lat: item.market.lat, lng: item.market.lng });
+              const km = calculateHaversineDistanceKm(
+                userLoc.lat,
+                userLoc.lng,
+                item.market.lat,
+                item.market.lng
+              );
               distLabel = `${km.toFixed(1)} km away`;
             }
 

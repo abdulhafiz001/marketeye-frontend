@@ -6,8 +6,7 @@ React Native / Expo client for Market Eye.
 
 1. Copy `.env.example` → `.env`
 2. Set `EXPO_PUBLIC_API_URL` to your Laravel host (LAN IP on a physical phone)
-3. Optional Google OAuth: set `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`
-4. `pnpm install` then `pnpm start`
+3. `pnpm install` then `pnpm start`
 
 ### Push notifications (Android FCM)
 
@@ -19,7 +18,7 @@ Expo Go will **not** receive remote price alerts.
 
 ## Features wired to the API
 
-- Auth (email/password, Google ID token, forgot-password OTP)
+- Auth (email/password, forgot-password OTP)
 - Markets, prices, compare, submit
 - Server-side price alerts + Expo push token registration
 - Offline draft queue (AsyncStorage + NetInfo → `POST /submissions/batch`)

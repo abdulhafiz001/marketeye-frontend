@@ -43,11 +43,6 @@ Edit `.env`:
 EXPO_PUBLIC_API_URL=https://marketeye.ahzcode.sbs/api/v1
 EXPO_PUBLIC_ADMIN_PANEL_URL=https://marketeye.ahzcode.sbs/admin
 EXPO_PUBLIC_EAS_PROJECT_ID=new
-
-# Optional Google sign-in (ask owner for client IDs)
-EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=
-EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID=
-EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=
 ```
 
 On a **physical phone** talking to a PC backend, use the PC Wi‑Fi IP, not `localhost`:

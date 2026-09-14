@@ -16,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import * as Location from 'expo-location';
+import { getCurrentUserLocation } from '@/services/locationService';
 
 import { Colors, Spacing, Typography } from '@/constants/colors';
 import { fetchProducts } from '@/services/catalogApi';
@@ -47,10 +47,9 @@ export default function BasketOptimizerScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === 'granted') {
-          const pos = await Location.getCurrentPositionAsync({});
-          setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        const coords = await getCurrentUserLocation();
+        if (coords) {
+          setUserLoc({ lat: coords.latitude, lng: coords.longitude });
         }
       } catch {
         // Location optional

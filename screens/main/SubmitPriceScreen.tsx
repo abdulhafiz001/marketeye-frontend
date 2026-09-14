@@ -16,7 +16,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import NetInfo from '@react-native-community/netinfo';
-import * as Location from 'expo-location';
+import { getCurrentUserLocation, calculateHaversineDistanceKm } from '@/services/locationService';
 
 import { fetchMarkets } from '@/services/marketsApi';
 import { fetchProducts } from '@/services/catalogApi';
@@ -29,20 +29,6 @@ import {
 } from '@/services/offlineQueue';
 import { useStore } from '@/store/useStore';
 import { Colors, Spacing, Typography } from '@/constants/colors';
-
-function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number) {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
 
 export default function SubmitPriceScreen() {
   const navigation = useNavigation();
@@ -82,10 +68,9 @@ export default function SubmitPriceScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === 'granted') {
-          const pos = await Location.getCurrentPositionAsync({});
-          setUserLoc({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        const coords = await getCurrentUserLocation();
+        if (coords) {
+          setUserLoc({ lat: coords.latitude, lng: coords.longitude });
         }
       } catch {
         // Location optional
@@ -119,7 +104,7 @@ export default function SubmitPriceScreen() {
   // Compute geofence proximity (within 750m)
   const isGeoverified = useMemo(() => {
     if (!userLoc || !selectedMarket?.lat || !selectedMarket?.lng) return false;
-    const dist = distanceKm(userLoc.lat, userLoc.lng, selectedMarket.lat, selectedMarket.lng);
+    const dist = calculateHaversineDistanceKm(userLoc.lat, userLoc.lng, selectedMarket.lat, selectedMarket.lng);
     return dist <= 0.75;
   }, [userLoc, selectedMarket]);
 

@@ -34,14 +34,6 @@ export async function registerRequest(payload: { name: string; email: string; pa
   return data.data;
 }
 
-export async function googleLoginRequest(idToken: string) {
-  const { data } = await api.post<ApiSuccess<{ user: AuthUser; token: string; token_type: string }>>('/auth/google', {
-    id_token: idToken,
-  });
-  await persistToken(data.data.token);
-  return data.data;
-}
-
 export async function forgotPasswordRequest(email: string) {
   const { data } = await api.post<ApiSuccess<null>>('/auth/forgot-password', { email });
   return data;
