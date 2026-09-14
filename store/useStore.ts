@@ -70,6 +70,7 @@ interface AppState {
   removeMarketWatch: (id: string) => void;
   updateMarketWatchPrice: (id: string, price: number | null) => void;
   getCommodityById: (id: string) => Commodity | undefined;
+  logoutUser: () => void;
 }
 
 // Create a simple store implementation
@@ -111,7 +112,27 @@ const store: ReturnType<typeof createSimpleStore<AppState>> = createSimpleStore<
   
   // Actions
   setUser: (user) => {
-    store.setState({ user });
+    const prev = store.getState().user;
+    if (user && prev && prev.id !== user.id) {
+      // Switched accounts: reset private notifications & alerts to prevent leak
+      store.setState({
+        user,
+        alerts: [],
+        notifications: [],
+        marketWatchlist: [],
+      });
+      AsyncStorage.setItem(
+        PREFERENCES_KEY,
+        JSON.stringify({
+          marketWatchlist: [],
+          alerts: [],
+          notifications: [],
+          hasCompletedOnboarding: true,
+        })
+      ).catch(() => {});
+    } else {
+      store.setState({ user });
+    }
   },
   
   setAuthenticated: (value) => {
@@ -273,6 +294,26 @@ const store: ReturnType<typeof createSimpleStore<AppState>> = createSimpleStore<
   
   getCommodityById: (id: string): Commodity | undefined => {
     return store.getState().commodities.find((c: Commodity) => c.id === id);
+  },
+
+  logoutUser: () => {
+    store.setState({
+      user: null,
+      isAuthenticated: false,
+      authToken: null,
+      marketWatchlist: [],
+      alerts: [],
+      notifications: [],
+    });
+    AsyncStorage.setItem(
+      PREFERENCES_KEY,
+      JSON.stringify({
+        marketWatchlist: [],
+        alerts: [],
+        notifications: [],
+        hasCompletedOnboarding: true,
+      })
+    ).catch(() => {});
   },
 });
 

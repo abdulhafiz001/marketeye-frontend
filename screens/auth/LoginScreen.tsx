@@ -17,7 +17,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { useStore } from '@/store/useStore';
+import { useQueryClient } from '@tanstack/react-query';
+import { useStore, setStoreState } from '@/store/useStore';
 import { Colors, Spacing, Typography } from '@/constants/colors';
 import { loginRequest, mapAuthUserToAppUser } from '@/services/authApi';
 import { fetchMarketWatches } from '@/services/userApi';
@@ -26,6 +27,7 @@ const REMEMBER_LOGIN_KEY = 'market-eye.remember-login.v1';
 
 export default function LoginScreen() {
   const navigation = useNavigation();
+  const queryClient = useQueryClient();
   const setAuthenticated = useStore((state) => state.setAuthenticated);
   const setUser = useStore((state) => state.setUser);
   const setMarketWatchlist = useStore((state) => state.setMarketWatchlist);
@@ -69,6 +71,8 @@ export default function LoginScreen() {
       } else {
         await AsyncStorage.removeItem(REMEMBER_LOGIN_KEY);
       }
+      queryClient.clear();
+      setStoreState({ notifications: [], alerts: [] });
       setUser(mapAuthUserToAppUser(res.user));
       try {
         setMarketWatchlist(await fetchMarketWatches());

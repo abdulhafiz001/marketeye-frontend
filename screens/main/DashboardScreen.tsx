@@ -51,7 +51,7 @@ export default function DashboardScreen() {
   const summary = summaryQ.data;
   const kpis = summary?.kpis;
   const ticker = summary?.live_ticker || [];
-  const recentActivity = summary?.recent_activity || [];
+  const recentActivity = (summary?.recent_activity || []).slice(0, 7);
 
   const onRefresh = () => {
     void summaryQ.refetch();

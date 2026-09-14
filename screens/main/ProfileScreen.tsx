@@ -136,12 +136,10 @@ function WalletCard() {
 
 export default function ProfileScreen() {
   const navigation = useNavigation();
+  const queryClient = useQueryClient();
   const user = useStore((state) => state.user);
   const marketWatchlist = useStore((state) => state.marketWatchlist);
-  const setAuthenticated = useStore((state) => state.setAuthenticated);
-  const setUser = useStore((state) => state.setUser);
-  const setAuthToken = useStore((state) => state.setAuthToken);
-  const setMarketWatchlist = useStore((state) => state.setMarketWatchlist);
+  const logoutUser = useStore((state) => state.logoutUser);
 
   const submissionsQ = useQuery({
     queryKey: ['my-submissions'],
@@ -159,10 +157,8 @@ export default function ProfileScreen() {
           try {
             await logoutRequest();
           } finally {
-            setAuthenticated(false);
-            setUser(null);
-            setAuthToken(null);
-            setMarketWatchlist([]);
+            logoutUser();
+            queryClient.clear();
           }
         },
       },

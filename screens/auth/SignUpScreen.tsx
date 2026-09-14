@@ -16,12 +16,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { useStore } from '@/store/useStore';
+import { useQueryClient } from '@tanstack/react-query';
+import { useStore, setStoreState } from '@/store/useStore';
 import { Colors, Spacing, Typography } from '@/constants/colors';
 import { mapAuthUserToAppUser, registerRequest } from '@/services/authApi';
 
 export default function SignUpScreen() {
   const navigation = useNavigation();
+  const queryClient = useQueryClient();
   const setAuthenticated = useStore((state) => state.setAuthenticated);
   const setUser = useStore((state) => state.setUser);
   const setMarketWatchlist = useStore((state) => state.setMarketWatchlist);
@@ -51,6 +53,8 @@ export default function SignUpScreen() {
         password,
         phone: phone.trim() || undefined,
       });
+      queryClient.clear();
+      setStoreState({ notifications: [], alerts: [] });
       setUser(mapAuthUserToAppUser(res.user));
       setMarketWatchlist([]);
       setAuthenticated(true);
