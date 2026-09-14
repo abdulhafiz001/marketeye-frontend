@@ -124,3 +124,35 @@ export async function compareBasket(payload: BasketComparePayload): Promise<Bask
   const { data } = await api.post<ApiSuccess<BasketCompareResponse>>('/prices/basket-compare', payload);
   return data.data;
 }
+
+export type CommunityValidationPayload = {
+  product_id: number;
+  market_id: number;
+  action: 'confirm' | 'dispute';
+  reported_price?: number | null;
+  notes?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+};
+
+export type CommunityValidationResponse = {
+  action: string;
+  is_geoverified: boolean;
+  points_earned: number;
+  confidence: {
+    score: number;
+    level: string;
+    confirmations_count: number;
+    disputes_count: number;
+    observations_count: number;
+    observed_range: { min: number; max: number; typical: number };
+    last_observed_ago: string;
+    verdict: string;
+    signals: Record<string, any>;
+  };
+};
+
+export async function validateCommunityPrice(payload: CommunityValidationPayload): Promise<CommunityValidationResponse> {
+  const { data } = await api.post<ApiSuccess<CommunityValidationResponse>>('/prices/validate', payload);
+  return data.data;
+}

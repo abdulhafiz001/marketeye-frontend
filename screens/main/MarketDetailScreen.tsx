@@ -16,6 +16,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchCategories } from '@/services/catalogApi';
 import { fetchMarketPrices, type MarketPriceRow } from '@/services/marketsApi';
 import { Colors, Spacing, Typography } from '@/constants/colors';
+import { CommunityValidationBar } from '@/components/CommunityValidationBar';
 
 export default function MarketDetailScreen() {
   const navigation = useNavigation<any>();
@@ -122,37 +123,52 @@ export default function MarketDetailScreen() {
           keyExtractor={(item) => String(item.product.id)}
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
           renderItem={({ item }) => {
-            const c = confidenceLabel(item);
             return (
               <View style={styles.card}>
-                <View style={{ flex: 1, paddingRight: 12 }}>
-                  <Text style={styles.pName}>{item.product.name}</Text>
-                  <Text style={styles.pUnit}>{item.product.unit}</Text>
-                  <Text style={styles.range}>
-                    ₦{item.min_price.toLocaleString()} – ₦{item.max_price.toLocaleString()}
-                  </Text>
-                  <View style={styles.confRow}>
-                    <MaterialCommunityIcons name={c.icon} size={16} color={c.color} />
-                    <Text style={[styles.confText, { color: c.color }]}>{c.text}</Text>
-                    {item.is_stale ? <Text style={styles.stale}> • Stale</Text> : null}
+                <View style={styles.cardTop}>
+                  <View style={{ flex: 1, paddingRight: 12 }}>
+                    <Text style={styles.pName}>{item.product.name}</Text>
+                    <Text style={styles.pUnit}>per {item.product.unit}</Text>
+                  </View>
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={styles.avg}>₦{item.avg_price.toLocaleString()}</Text>
+                    <Text style={styles.avgLbl}>typical price</Text>
                   </View>
                 </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={styles.avg}>₦{item.avg_price.toLocaleString()}</Text>
-                  <Text style={styles.avgLbl}>avg</Text>
-                  <TouchableOpacity
-                    style={styles.submitBtn}
-                    onPress={() =>
-                      navigation.navigate('CommodityDetail', {
-                        productId: item.product.id,
-                        marketId,
-                        marketName: headerMarketName,
-                      })
-                    }
-                  >
-                    <Text style={styles.submitBtnText}>View</Text>
-                  </TouchableOpacity>
-                </View>
+
+                {/* Community Post-Submission Validation Bar (Waze continuous model) */}
+                <CommunityValidationBar
+                  productId={item.product.id}
+                  productName={item.product.name}
+                  marketId={marketId}
+                  marketName={headerMarketName}
+                  avgPrice={item.avg_price}
+                  minPrice={item.min_price}
+                  maxPrice={item.max_price}
+                  confidenceScore={item.confidence_score}
+                  confidenceLevel={item.confidence_level}
+                  confirmationsCount={item.confirmations_count}
+                  disputesCount={item.disputes_count}
+                  observationsCount={item.observations_count}
+                  lastObservedAgo={item.last_observed_ago}
+                  verdict={item.verdict}
+                  userAction={item.user_action}
+                  signals={item.signals}
+                />
+
+                <TouchableOpacity
+                  style={styles.detailLink}
+                  onPress={() =>
+                    navigation.navigate('CommodityDetail', {
+                      productId: item.product.id,
+                      marketId,
+                      marketName: headerMarketName,
+                    })
+                  }
+                >
+                  <Text style={styles.detailLinkText}>View price history & details</Text>
+                  <MaterialCommunityIcons name="chevron-right" size={16} color={Colors.primary.deepBlue} />
+                </TouchableOpacity>
               </View>
             );
           }}
@@ -223,21 +239,45 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   err: { color: '#6B7280' },
   card: {
-    flexDirection: 'row',
     backgroundColor: '#FFF',
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderColor: '#E2E8F0',
     padding: Spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  cardTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 4,
   },
   pName: { fontSize: 16, fontWeight: '800', color: '#111827' },
-  pUnit: { marginTop: 2, color: '#6B7280', fontSize: 12 },
+  pUnit: { marginTop: 2, color: '#6B7280', fontSize: 12, fontWeight: '600' },
   range: { marginTop: 8, color: '#6B7280', fontSize: 12 },
   confRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
   confText: { fontSize: 12, fontWeight: '700' },
   stale: { color: '#F59E0B', fontSize: 12, fontWeight: '700' },
   avg: { fontSize: 20, fontWeight: '900', color: Colors.primary.deepBlue },
   avgLbl: { marginTop: 2, fontSize: 11, color: '#9CA3AF', fontWeight: '700' },
+  detailLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  detailLinkText: {
+    color: Colors.primary.deepBlue,
+    fontWeight: '700',
+    fontSize: 12,
+  },
   submitBtn: {
     marginTop: 10,
     backgroundColor: Colors.primary.deepBlue,

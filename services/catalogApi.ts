@@ -72,6 +72,23 @@ export type ProductDetail = {
     snapshot_date: string;
     as_of?: string;
     submission_count: number;
+    confidence_score?: number;
+    confidence_level?: 'high' | 'medium' | 'low' | 'needs_review' | 'stale';
+    confirmations_count?: number;
+    disputes_count?: number;
+    observations_count?: number;
+    observed_range?: { min: number; max: number; typical: number };
+    last_observed_ago?: string;
+    verdict?: string;
+    user_action?: 'CONFIRM' | 'DISPUTE' | null;
+    signals?: {
+      recency_score?: number;
+      community_score?: number;
+      contributor_score?: number;
+      geo_score?: number;
+      dispersion_score?: number;
+      is_geoverified?: boolean;
+    };
   }>;
 };
 

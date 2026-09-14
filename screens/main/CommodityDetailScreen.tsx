@@ -19,6 +19,7 @@ import { Colors, Spacing, Typography } from '@/constants/colors';
 import { fetchProductDetail } from '@/services/catalogApi';
 import { deleteMarketWatch, saveMarketWatch } from '@/services/userApi';
 import { getStoreState, useStore } from '@/store/useStore';
+import { CommunityValidationBar } from '@/components/CommunityValidationBar';
 
 const { width } = Dimensions.get('window');
 
@@ -275,26 +276,48 @@ export default function CommodityDetailScreen() {
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Market prices</Text>
+            <Text style={styles.sectionTitle}>Market prices & community verification</Text>
             {data.markets.length ? (
               data.markets.map((row, index) => (
-                <View key={`${row.market.id}-${row.snapshot_date}`} style={styles.marketRow}>
-                  <View style={styles.marketIcon}>
-                    <MaterialCommunityIcons name="storefront-outline" size={20} color={Colors.primary.deepBlue} />
+                <View key={`${row.market.id}-${row.snapshot_date}`} style={styles.marketPriceCard}>
+                  <View style={styles.marketRow}>
+                    <View style={styles.marketIcon}>
+                      <MaterialCommunityIcons name="storefront-outline" size={20} color={Colors.primary.deepBlue} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.marketName}>{row.market.name}</Text>
+                      <Text style={styles.muted}>
+                        {row.market.area || 'Abuja'}
+                        {row.as_of || row.snapshot_date
+                          ? ` · as of ${row.as_of || row.snapshot_date}`
+                          : ''}
+                      </Text>
+                    </View>
+                    <View style={styles.marketPriceBox}>
+                      <Text style={styles.marketPrice}>{formatNaira(row.avg_price)}</Text>
+                      {index === 0 ? <Text style={styles.bestText}>Best price</Text> : null}
+                    </View>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.marketName}>{row.market.name}</Text>
-                    <Text style={styles.muted}>
-                      {row.market.area || 'Abuja'}
-                      {row.as_of || row.snapshot_date
-                        ? ` · as of ${row.as_of || row.snapshot_date}`
-                        : ''}
-                    </Text>
-                  </View>
-                  <View style={styles.marketPriceBox}>
-                    <Text style={styles.marketPrice}>{formatNaira(row.avg_price)}</Text>
-                    {index === 0 ? <Text style={styles.bestText}>Best price</Text> : null}
-                  </View>
+
+                  <CommunityValidationBar
+                    productId={product.id}
+                    productName={product.name}
+                    marketId={row.market.id}
+                    marketName={row.market.name}
+                    avgPrice={row.avg_price}
+                    minPrice={row.min_price}
+                    maxPrice={row.max_price}
+                    confidenceScore={row.confidence_score}
+                    confidenceLevel={row.confidence_level}
+                    confirmationsCount={row.confirmations_count}
+                    disputesCount={row.disputes_count}
+                    observationsCount={row.observations_count}
+                    lastObservedAgo={row.last_observed_ago}
+                    verdict={row.verdict}
+                    userAction={row.user_action}
+                    signals={row.signals}
+                    compact
+                  />
                 </View>
               ))
             ) : (
@@ -397,12 +420,17 @@ const styles = StyleSheet.create({
   changeDotUp: { backgroundColor: '#DC2626' },
   changeDotDown: { backgroundColor: '#16A34A' },
   changeDate: { color: '#111827', fontWeight: '900', marginBottom: 2 },
+  marketPriceCard: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 12,
+    marginBottom: 10,
+  },
   marketRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
     gap: 12,
   },
   marketIcon: {
