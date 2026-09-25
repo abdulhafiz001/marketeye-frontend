@@ -76,6 +76,8 @@ const config = {
   },
   android: {
     package: 'com.marketeye.app',
+    // Prevent Auto Backup from restoring the auth token after uninstall.
+    allowBackup: false,
     adaptiveIcon: {
       backgroundColor: '#E6F4FE',
       foregroundImage: './assets/images/naija-price-img.png',

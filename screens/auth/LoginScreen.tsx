@@ -22,9 +22,8 @@ import { useStore, setStoreState } from '@/store/useStore';
 import { Colors, Spacing, Typography } from '@/constants/colors';
 import { loginRequest, mapAuthUserToAppUser } from '@/services/authApi';
 import { fetchMarketWatches } from '@/services/userApi';
+import { REMEMBER_LOGIN_KEY } from '@/services/sessionBootstrap';
 import { normalizeEmail, normalizePhone, validateLoginInput } from '@/utils/authValidation';
-
-const REMEMBER_LOGIN_KEY = 'market-eye.remember-login.v1';
 
 export default function LoginScreen() {
   const navigation = useNavigation<any>();
@@ -45,9 +44,8 @@ export default function LoginScreen() {
       try {
         const raw = await AsyncStorage.getItem(REMEMBER_LOGIN_KEY);
         if (!raw || cancelled) return;
-        const saved = JSON.parse(raw) as { login?: string; password?: string };
+        const saved = JSON.parse(raw) as { login?: string };
         if (saved.login) setLogin(saved.login);
-        if (saved.password) setPassword(saved.password);
         setRememberMe(true);
       } catch {
         // ignore corrupt storage
@@ -72,7 +70,7 @@ export default function LoginScreen() {
       if (rememberMe) {
         await AsyncStorage.setItem(
           REMEMBER_LOGIN_KEY,
-          JSON.stringify({ login: loginValue, password })
+          JSON.stringify({ login: loginValue })
         );
       } else {
         await AsyncStorage.removeItem(REMEMBER_LOGIN_KEY);

@@ -336,7 +336,6 @@ export async function hydratePreferences(): Promise<void> {
   try {
     const raw = await AsyncStorage.getItem(PREFERENCES_KEY);
     if (!raw) {
-      setStoreState({ prefsHydrated: true });
       return;
     }
     const p = JSON.parse(raw) as {
@@ -350,10 +349,9 @@ export async function hydratePreferences(): Promise<void> {
       alerts: Array.isArray(p.alerts) ? p.alerts : [],
       notifications: Array.isArray(p.notifications) ? p.notifications : [],
       hasCompletedOnboarding: Boolean(p.hasCompletedOnboarding),
-      prefsHydrated: true,
     });
   } catch {
-    setStoreState({ prefsHydrated: true });
+    // Keep defaults; session bootstrap marks the store ready.
   }
 }
 
