@@ -18,6 +18,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useStore } from '@/store/useStore';
 import { Colors, Spacing, Typography } from '@/constants/colors';
 import { mapAuthUserToAppUser, updateProfileRequest } from '@/services/authApi';
+import { isValidEmailShape, isValidPhone, normalizeEmail, normalizePhone, validateProfileName } from '@/utils/authValidation';
 
 export default function AccountSettingsScreen() {
   const user = useStore((state) => state.user);
@@ -36,11 +37,20 @@ export default function AccountSettingsScreen() {
     }
 
     const trimmedName = name.trim();
-    const trimmedEmail = email.trim();
-    const trimmedPhone = phone.trim();
+    const trimmedEmail = normalizeEmail(email);
+    const trimmedPhone = phone.trim() ? normalizePhone(phone) : '';
+    const nameError = validateProfileName(trimmedName);
 
-    if (!trimmedName || !trimmedEmail) {
-      Alert.alert('Missing details', 'Name and email are required.');
+    if (nameError) {
+      Alert.alert('Invalid name', nameError);
+      return;
+    }
+    if (!isValidEmailShape(trimmedEmail)) {
+      Alert.alert('Invalid email', 'Enter a real email address, like you@example.com.');
+      return;
+    }
+    if (trimmedPhone && !isValidPhone(trimmedPhone)) {
+      Alert.alert('Invalid phone', 'Phone must be 10 to 15 digits.');
       return;
     }
 
@@ -92,7 +102,7 @@ export default function AccountSettingsScreen() {
                 style={styles.input}
                 value={name}
                 onChangeText={setName}
-                placeholder="Enter your name"
+                placeholder="Add your display name"
                 placeholderTextColor={Colors.text.secondary}
                 editable={!saving}
               />

@@ -22,11 +22,12 @@ import { useStore, setStoreState } from '@/store/useStore';
 import { Colors, Spacing, Typography } from '@/constants/colors';
 import { loginRequest, mapAuthUserToAppUser } from '@/services/authApi';
 import { fetchMarketWatches } from '@/services/userApi';
+import { normalizeEmail, normalizePhone, validateLoginInput } from '@/utils/authValidation';
 
 const REMEMBER_LOGIN_KEY = 'market-eye.remember-login.v1';
 
 export default function LoginScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const queryClient = useQueryClient();
   const setAuthenticated = useStore((state) => state.setAuthenticated);
   const setUser = useStore((state) => state.setUser);
@@ -58,15 +59,20 @@ export default function LoginScreen() {
   }, []);
 
   const handleLogin = async () => {
-    if (!login.trim() || !password) return;
+    const localError = validateLoginInput(login, password);
+    if (localError) {
+      setError(localError);
+      return;
+    }
     setLoading(true);
     setError(null);
+    const loginValue = login.includes('@') ? normalizeEmail(login) : normalizePhone(login);
     try {
-      const res = await loginRequest(login.trim(), password);
+      const res = await loginRequest(loginValue, password);
       if (rememberMe) {
         await AsyncStorage.setItem(
           REMEMBER_LOGIN_KEY,
-          JSON.stringify({ login: login.trim(), password })
+          JSON.stringify({ login: loginValue, password })
         );
       } else {
         await AsyncStorage.removeItem(REMEMBER_LOGIN_KEY);
@@ -81,6 +87,12 @@ export default function LoginScreen() {
       }
       setAuthenticated(true);
     } catch (e: any) {
+      const unverified = e?.response?.data?.errors?.code?.[0] === 'email_unverified';
+      const unverifiedEmail = e?.response?.data?.errors?.email?.[0];
+      if (unverified && unverifiedEmail) {
+        navigation.navigate('VerifyEmail', { email: unverifiedEmail });
+        return;
+      }
       const msg =
         e?.response?.data?.message ||
         (e?.response?.data?.errors && Object.values(e.response.data.errors).flat().join(' ')) ||

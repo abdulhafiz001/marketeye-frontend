@@ -21,6 +21,7 @@ import { Colors, Spacing, Typography } from '@/constants/colors';
 import { fetchCategories, fetchProducts } from '@/services/catalogApi';
 import { fetchMarkets } from '@/services/marketsApi';
 import { fetchDashboardSummary, fetchTrending } from '@/services/pricesApi';
+import { avatarInitial, displayFirstName } from '@/utils/authValidation';
 import { resolveCategoryIcon } from '@/utils/categoryIcon';
 
 const { width } = Dimensions.get('window');
@@ -30,7 +31,6 @@ export default function DashboardScreen() {
   const navigation = useNavigation<any>();
   const user = useStore((state) => state.user);
   const notifications = useStore((state) => state.notifications);
-  const alerts = useStore((state) => state.alerts);
   const unreadBellCount = notifications.filter((n) => !n.read).length;
 
   const [search, setSearch] = useState('');
@@ -83,6 +83,7 @@ export default function DashboardScreen() {
 
   const userBalance = user?.walletBalance ?? 0;
   const progressPercent = Math.min(100, Math.round((userBalance / 200) * 100));
+  const firstName = displayFirstName(user);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -103,7 +104,13 @@ export default function DashboardScreen() {
           <View style={styles.headerTop}>
             <View style={{ flex: 1 }}>
               <Text style={styles.greetingText}>
-                Hello, <Text style={styles.userName}>{user?.name?.split(' ')[0] || 'Trader'}</Text>
+                {firstName ? (
+                  <>
+                    Hello, <Text style={styles.userName}>{firstName}</Text>
+                  </>
+                ) : (
+                  <Text style={styles.userName}>Hello</Text>
+                )}
               </Text>
               <Text style={styles.dateText}>
                 {new Date().toLocaleDateString('en-NG', { weekday: 'long', day: 'numeric', month: 'long' })} • Abuja
@@ -122,9 +129,9 @@ export default function DashboardScreen() {
               ) : null}
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.profileButton} onPress={() => navigation.navigate('Profile')}>
+            <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
               <View style={styles.avatarCircle}>
-                <Text style={styles.avatarText}>{(user?.name?.[0] || 'U').toUpperCase()}</Text>
+                <Text style={styles.avatarText}>{avatarInitial(user)}</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -141,9 +148,6 @@ export default function DashboardScreen() {
               onSubmitEditing={submitSearch}
               returnKeyType="search"
             />
-            <TouchableOpacity style={styles.filterButton} onPress={() => navigation.navigate('Basket')}>
-              <MaterialCommunityIcons name="cart-outline" size={20} color={Colors.primary.white} />
-            </TouchableOpacity>
           </View>
 
           {/* Search Autocomplete Results */}
@@ -216,20 +220,21 @@ export default function DashboardScreen() {
 
         {/* Real-time Market KPI Metrics Carousel */}
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Abuja Market Pulse</Text>
+          <Text style={styles.sectionTitle}>Market Pulse</Text>
+          <Text style={styles.sectionLead}>Today’s price movement across Abuja markets</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.kpiCarousel}
           >
             {/* KPI Card 1: Today's Submissions */}
-            <View style={[styles.kpiCard, { backgroundColor: '#0F172A' }]}>
+            <View style={[styles.kpiCard, { backgroundColor: '#FFF' }]}>
               <View style={styles.kpiTopRow}>
-                <Text style={styles.kpiLabelLight}>Today's Updates</Text>
-                <MaterialCommunityIcons name="broadcast" size={18} color="#22C55E" />
+                <Text style={styles.kpiLabel}>Today's Updates</Text>
+                <MaterialCommunityIcons name="broadcast" size={18} color="#16A34A" />
               </View>
-              <Text style={styles.kpiValueLight}>{kpis?.today_submissions_count ?? 0}</Text>
-              <Text style={styles.kpiSubLight}>Verified crowd reports today</Text>
+              <Text style={styles.kpiValue}>{kpis?.today_submissions_count ?? 0}</Text>
+              <Text style={styles.kpiSub}>Verified crowd reports today</Text>
             </View>
 
             {/* KPI Card 2: 7-Day Inflation */}
@@ -287,6 +292,8 @@ export default function DashboardScreen() {
 
         {/* Quick Actions 4-Grid */}
         <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>What you can do</Text>
+          <Text style={styles.sectionLead}>Each shortcut opens a tool in the app</Text>
           <View style={styles.quickActionGrid}>
             <TouchableOpacity
               style={styles.actionBtn}
@@ -297,7 +304,7 @@ export default function DashboardScreen() {
                 <MaterialCommunityIcons name="cart-percent" size={24} color={Colors.primary.deepBlue} />
               </View>
               <Text style={styles.actionBtnText}>Smart Basket</Text>
-              <Text style={styles.actionBtnSub}>Save on list</Text>
+              <Text style={styles.actionBtnSub}>Compare one shopping list across markets</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -309,7 +316,7 @@ export default function DashboardScreen() {
                 <MaterialCommunityIcons name="bell-ring-outline" size={24} color="#D97706" />
               </View>
               <Text style={styles.actionBtnText}>Price Watch</Text>
-              <Text style={styles.actionBtnSub}>{alerts.length} active alerts</Text>
+              <Text style={styles.actionBtnSub}>Alert me when a price hits my target</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -321,7 +328,7 @@ export default function DashboardScreen() {
                 <MaterialCommunityIcons name="map-marker-radius-outline" size={24} color="#7E22CE" />
               </View>
               <Text style={styles.actionBtnText}>All Markets</Text>
-              <Text style={styles.actionBtnSub}>Live stalls</Text>
+              <Text style={styles.actionBtnSub}>Browse live prices by market</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -333,7 +340,7 @@ export default function DashboardScreen() {
                 <MaterialCommunityIcons name="plus-circle" size={24} color="#16A34A" />
               </View>
               <Text style={styles.actionBtnText}>Report Price</Text>
-              <Text style={styles.actionBtnSub}>Earn +10 Pts</Text>
+              <Text style={styles.actionBtnSub}>Submit a price I saw in the market</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -341,10 +348,12 @@ export default function DashboardScreen() {
         {/* Arbitrage Opportunity Card */}
         {kpis?.top_arbitrage ? (
           <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Price Gap Alert</Text>
+            <Text style={styles.sectionLead}>Same item, different market prices</Text>
             <View style={styles.arbitrageCard}>
               <View style={styles.arbitrageHeader}>
                 <MaterialCommunityIcons name="scale-balance" size={22} color="#F59E0B" />
-                <Text style={styles.arbitrageTitle}>Market Price Gap Alert</Text>
+                <Text style={styles.arbitrageTitle}>Biggest saving right now</Text>
               </View>
               <Text style={styles.arbitrageBody}>
                 You can save <Text style={styles.arbitrageBold}>₦{kpis.top_arbitrage.price_gap.toLocaleString()}</Text> on{' '}
@@ -561,7 +570,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   notificationBadgeText: { color: '#FFF', fontSize: 10, fontWeight: '900' },
-  profileButton: { elevation: 2 },
   avatarCircle: {
     width: 40,
     height: 40,
@@ -582,11 +590,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#E2E8F0',
     gap: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
   },
   searchInput: {
     flex: 1,
@@ -596,7 +599,6 @@ const styles = StyleSheet.create({
     paddingVertical: Platform.OS === 'ios' ? 8 : 6,
     minHeight: 44,
   },
-  filterButton: { backgroundColor: Colors.primary.deepBlue, padding: 8, borderRadius: 10 },
   searchResults: {
     marginTop: 8,
     backgroundColor: '#FFF',
@@ -604,11 +606,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 3,
   },
   searchResultRow: {
     flexDirection: 'row',
@@ -635,7 +632,7 @@ const styles = StyleSheet.create({
   tickerTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0F172A',
+    backgroundColor: Colors.primary.deepBlue,
     paddingHorizontal: 6,
     paddingVertical: 3,
     borderRadius: 6,
@@ -658,48 +655,37 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   sectionTitle: { ...Typography.h3, color: '#0F172A', fontSize: 17, fontWeight: '900' },
+  sectionLead: { color: '#64748B', fontSize: 12, fontWeight: '600', marginTop: 2, marginBottom: 10 },
   sectionHint: { color: '#94A3B8', fontSize: 12, fontWeight: '700' },
   seeAllText: { color: Colors.primary.deepBlue, fontWeight: '800', fontSize: 13 },
   kpiCarousel: { gap: 12, paddingRight: Spacing.lg },
   kpiCard: {
     width: 160,
-    borderRadius: 18,
+    borderRadius: 16,
     padding: 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    backgroundColor: '#FFF',
   },
   kpiTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   kpiLabel: { fontSize: 11, fontWeight: '800', color: '#64748B' },
-  kpiLabelLight: { fontSize: 11, fontWeight: '800', color: '#94A3B8' },
   kpiValue: { fontSize: 24, fontWeight: '900', color: '#0F172A', marginTop: 8 },
-  kpiValueLight: { fontSize: 24, fontWeight: '900', color: '#FFF', marginTop: 8 },
   kpiSub: { fontSize: 11, color: '#94A3B8', fontWeight: '600', marginTop: 4 },
-  kpiSubLight: { fontSize: 11, color: '#CBD5E1', fontWeight: '600', marginTop: 4 },
   kpiBargainName: { fontSize: 15, fontWeight: '900', color: '#166534', marginTop: 8 },
   kpiBargainDiscount: { fontSize: 12, color: '#16A34A', fontWeight: '800', marginTop: 4 },
-  quickActionGrid: { flexDirection: 'row', gap: 10 },
+  quickActionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   actionBtn: {
-    flex: 1,
+    width: CARD_WIDTH,
     backgroundColor: '#FFF',
     borderRadius: 16,
     padding: 12,
-    alignItems: 'center',
+    alignItems: 'flex-start',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
-    elevation: 1,
   },
   actionIconWrap: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  actionBtnText: { fontSize: 12, fontWeight: '900', color: '#0F172A' },
-  actionBtnSub: { fontSize: 10, color: '#94A3B8', fontWeight: '600', marginTop: 2 },
+  actionBtnText: { fontSize: 13, fontWeight: '900', color: '#0F172A' },
+  actionBtnSub: { fontSize: 11, color: '#64748B', fontWeight: '600', marginTop: 4, lineHeight: 15 },
   arbitrageCard: {
     backgroundColor: '#FFFBEB',
     borderRadius: 18,

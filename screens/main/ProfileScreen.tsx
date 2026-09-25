@@ -259,7 +259,7 @@ export default function ProfileScreen() {
           >
             <View style={styles.avatarContainer}>
               <Text style={styles.avatarText}>
-                {getInitials(user?.name || 'User')}
+                {getInitials(user?.name?.trim() || user?.email || 'U')}
               </Text>
             </View>
             <View style={styles.editBadge}>
@@ -267,7 +267,7 @@ export default function ProfileScreen() {
             </View>
           </TouchableOpacity>
 
-          <Text style={styles.userName}>{user?.name || 'Guest User'}</Text>
+          <Text style={styles.userName}>{user?.name?.trim() || user?.email || 'Guest User'}</Text>
           <Text style={styles.userEmail}>{user?.email || 'Sign in to sync data'}</Text>
 
           <View style={styles.pointsCard}>

@@ -5,7 +5,7 @@ import type { User } from '@/types';
 
 export type AuthUser = {
   id: number;
-  name: string;
+  name: string | null;
   email: string;
   phone: string | null;
   avatar: string | null;
@@ -26,12 +26,24 @@ export async function loginRequest(login: string, password: string) {
 }
 
 export async function registerRequest(payload: { name: string; email: string; password: string; phone?: string }) {
+  const { data } = await api.post<
+    ApiSuccess<{ requires_verification: boolean; email: string; expires_in_minutes: number }>
+  >('/auth/register', payload);
+  return data;
+}
+
+export async function verifyEmailRequest(email: string, code: string) {
   const { data } = await api.post<ApiSuccess<{ user: AuthUser; token: string; token_type: string }>>(
-    '/auth/register',
-    payload
+    '/auth/verify-email',
+    { email, code }
   );
   await persistToken(data.data.token);
   return data.data;
+}
+
+export async function resendVerificationRequest(email: string) {
+  const { data } = await api.post<ApiSuccess<{ expires_in_minutes: number }>>('/auth/resend-verification', { email });
+  return data;
 }
 
 export async function forgotPasswordRequest(email: string) {
@@ -75,7 +87,7 @@ export async function updateProfileRequest(payload: { name: string; email: strin
 export function mapAuthUserToAppUser(u: AuthUser): User {
   return {
     id: String(u.id),
-    name: u.name,
+    name: u.name?.trim() || '',
     email: u.email,
     phone: u.phone || '',
     avatar: u.avatar || undefined,

@@ -16,17 +16,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { useQueryClient } from '@tanstack/react-query';
-import { useStore, setStoreState } from '@/store/useStore';
 import { Colors, Spacing, Typography } from '@/constants/colors';
-import { mapAuthUserToAppUser, registerRequest } from '@/services/authApi';
+import { registerRequest } from '@/services/authApi';
+import { normalizeEmail, normalizePhone, validateSignupInput } from '@/utils/authValidation';
 
 export default function SignUpScreen() {
-  const navigation = useNavigation();
-  const queryClient = useQueryClient();
-  const setAuthenticated = useStore((state) => state.setAuthenticated);
-  const setUser = useStore((state) => state.setUser);
-  const setMarketWatchlist = useStore((state) => state.setMarketWatchlist);
+  const navigation = useNavigation<any>();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -37,27 +32,20 @@ export default function SignUpScreen() {
 
   const handleSignUp = async () => {
     setError(null);
-    if (!name?.trim() || !email?.trim() || !password) {
-      setError('Please enter your name, email, and password.');
-      return;
-    }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
+    const localError = validateSignupInput({ name, email, password, phone });
+    if (localError) {
+      setError(localError);
       return;
     }
     setLoading(true);
     try {
-      const res = await registerRequest({
+      await registerRequest({
         name: name.trim(),
-        email: email.trim(),
+        email: normalizeEmail(email),
         password,
-        phone: phone.trim() || undefined,
+        phone: phone.trim() ? normalizePhone(phone) : undefined,
       });
-      queryClient.clear();
-      setStoreState({ notifications: [], alerts: [] });
-      setUser(mapAuthUserToAppUser(res.user));
-      setMarketWatchlist([]);
-      setAuthenticated(true);
+      navigation.navigate('VerifyEmail', { email: normalizeEmail(email) });
     } catch (e: any) {
       const msg =
         e?.response?.data?.message ||
