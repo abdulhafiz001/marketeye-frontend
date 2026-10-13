@@ -10,7 +10,9 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import React from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../constants/colors';
+import { headerStackScreenLayout, tabStackScreenLayout, withScreenSafeArea } from './screenSafeArea';
 
 import AboutAppScreen from '../screens/main/AboutAppScreen';
 import AccountSettingsScreen from '../screens/main/AccountSettingsScreen';
@@ -24,9 +26,15 @@ import LeaderboardScreen from '../screens/main/LeaderboardScreen';
 import MarketDetailScreen from '../screens/main/MarketDetailScreen';
 import MarketScreen from '../screens/main/MarketScreen';
 import NotificationSettingsScreen from '../screens/main/NotificationSettingsScreen';
+import NotificationsScreen from '../screens/main/NotificationsScreen';
 import PriceWatchScreen from '../screens/main/PriceWatchScreen';
 import ProfileScreen from '../screens/main/ProfileScreen';
 import SubmitPriceScreen from '../screens/main/SubmitPriceScreen';
+
+const ProfileMainScreen = withScreenSafeArea(ProfileScreen);
+const ProfileNotificationsScreen = withScreenSafeArea(NotificationsScreen);
+const HelpSupportSafeScreen = withScreenSafeArea(HelpSupportScreen);
+const AboutAppSafeScreen = withScreenSafeArea(AboutAppScreen);
 
 const Tab = createBottomTabNavigator();
 const HomeStackNav = createStackNavigator();
@@ -37,8 +45,9 @@ const ProfileStackNav = createStackNavigator();
 
 function HomeStack() {
   return (
-    <HomeStackNav.Navigator screenOptions={{ headerShown: false }}>
+    <HomeStackNav.Navigator screenOptions={{ headerShown: false }} screenLayout={tabStackScreenLayout}>
       <HomeStackNav.Screen name="HomeMain" component={DashboardScreen} />
+      <HomeStackNav.Screen name="Notifications" component={NotificationsScreen} />
       <HomeStackNav.Screen name="CommodityDetail" component={CommodityDetailScreen} />
       <HomeStackNav.Screen name="Profile" component={ProfileStack} />
       <HomeStackNav.Screen name="PriceWatch" component={PriceWatchScreen} />
@@ -56,7 +65,11 @@ function HomeStack() {
 
 function MarketStack() {
   return (
-    <MarketStackNav.Navigator initialRouteName="MarketList" screenOptions={{ headerShown: false }}>
+    <MarketStackNav.Navigator
+      initialRouteName="MarketList"
+      screenOptions={{ headerShown: false }}
+      screenLayout={tabStackScreenLayout}
+    >
       <MarketStackNav.Screen name="MarketList" component={MarketScreen} />
       <MarketStackNav.Screen name="MarketDetail" component={MarketDetailScreen} />
       <MarketStackNav.Screen
@@ -80,8 +93,9 @@ function MarketStack() {
 
 function PriceWatchStack() {
   return (
-    <PriceWatchStackNav.Navigator screenOptions={{ headerShown: false }}>
+    <PriceWatchStackNav.Navigator screenOptions={{ headerShown: false }} screenLayout={tabStackScreenLayout}>
       <PriceWatchStackNav.Screen name="PriceWatchMain" component={PriceWatchScreen} />
+      <PriceWatchStackNav.Screen name="Notifications" component={NotificationsScreen} />
       <PriceWatchStackNav.Screen name="CommodityDetail" component={CommodityDetailScreen} />
       <PriceWatchStackNav.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
       <PriceWatchStackNav.Screen
@@ -95,7 +109,7 @@ function PriceWatchStack() {
 
 function BasketStack() {
   return (
-    <BasketStackNav.Navigator screenOptions={{ headerShown: false }}>
+    <BasketStackNav.Navigator screenOptions={{ headerShown: false }} screenLayout={tabStackScreenLayout}>
       <BasketStackNav.Screen name="BasketMain" component={BasketOptimizerScreen} />
       <BasketStackNav.Screen name="Compare" component={CompareScreen} />
       <BasketStackNav.Screen name="MarketDetail" component={MarketDetailScreen} />
@@ -111,8 +125,13 @@ function BasketStack() {
 
 function ProfileStack() {
   return (
-    <ProfileStackNav.Navigator>
-      <ProfileStackNav.Screen name="ProfileMain" component={ProfileScreen} options={{ headerShown: false }} />
+    <ProfileStackNav.Navigator screenLayout={headerStackScreenLayout}>
+      <ProfileStackNav.Screen name="ProfileMain" component={ProfileMainScreen} options={{ headerShown: false }} />
+      <ProfileStackNav.Screen
+        name="Notifications"
+        component={ProfileNotificationsScreen}
+        options={{ headerShown: false }}
+      />
       <ProfileStackNav.Screen name="Leaderboard" component={LeaderboardScreen} options={{ title: 'Leaderboard' }} />
       <ProfileStackNav.Screen name="Insights" component={InsightsScreen} options={{ title: 'Market Insights' }} />
       <ProfileStackNav.Screen name="CommodityDetail" component={CommodityDetailScreen} />
@@ -136,14 +155,10 @@ function ProfileStack() {
       />
       <ProfileStackNav.Screen
         name="HelpSupport"
-        component={HelpSupportScreen}
+        component={HelpSupportSafeScreen}
         options={{ headerShown: false }}
       />
-      <ProfileStackNav.Screen
-        name="AboutApp"
-        component={AboutAppScreen}
-        options={{ headerShown: false }}
-      />
+      <ProfileStackNav.Screen name="AboutApp" component={AboutAppSafeScreen} options={{ headerShown: false }} />
       <ProfileStackNav.Screen
         name="SubmitPrice"
         component={SubmitPriceScreen}
@@ -154,6 +169,9 @@ function ProfileStack() {
 }
 
 export default function MainTabNavigator() {
+  const insets = useSafeAreaInsets();
+  const tabBarBottom = Math.max(insets.bottom, 8);
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -162,9 +180,9 @@ export default function MainTabNavigator() {
         tabBarStyle: {
           backgroundColor: Colors.primary.white,
           borderTopColor: Colors.primary.lightGray,
-          paddingBottom: 20,
+          paddingBottom: tabBarBottom,
           paddingTop: 8,
-          height: 72,
+          height: 56 + tabBarBottom,
         },
         tabBarLabelStyle: {
           marginBottom: 4,

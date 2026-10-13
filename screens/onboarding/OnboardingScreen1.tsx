@@ -10,7 +10,6 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Spacing, Typography } from '@/constants/colors';
@@ -21,7 +20,7 @@ export default function OnboardingScreen1() {
   const navigation = useNavigation();
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.content}>
         <View style={styles.iconContainer}>
           <MaterialCommunityIcons
@@ -64,7 +63,7 @@ export default function OnboardingScreen1() {
           />
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

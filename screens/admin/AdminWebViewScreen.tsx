@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -13,7 +12,7 @@ export default function AdminWebViewScreen() {
   const uri = useMemo(() => ADMIN_PANEL_URL, []);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       {visible ? (
         <View style={styles.banner}>
           <MaterialCommunityIcons name="shield-alert" size={18} color="#F59E0B" />
@@ -32,7 +31,7 @@ export default function AdminWebViewScreen() {
       </View>
 
       <WebView source={{ uri }} style={styles.web} />
-    </SafeAreaView>
+    </View>
   );
 }
 

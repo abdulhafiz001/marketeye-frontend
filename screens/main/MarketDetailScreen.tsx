@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
@@ -54,7 +53,7 @@ export default function MarketDetailScreen() {
   const headerMarketName = pricesQ.data?.market?.name || marketName || 'Market';
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <MaterialCommunityIcons name="arrow-left" size={22} color={Colors.primary.deepBlue} />
@@ -174,7 +173,7 @@ export default function MarketDetailScreen() {
           }}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 

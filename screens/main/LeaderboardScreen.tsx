@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { fetchLeaderboard } from '@/services/userApi';
@@ -20,7 +19,7 @@ export default function LeaderboardScreen() {
   const you = q.data?.you;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Leaderboard</Text>
         <Text style={styles.sub}>Top contributors helping Abuja shoppers.</Text>
@@ -81,7 +80,7 @@ export default function LeaderboardScreen() {
           }}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 

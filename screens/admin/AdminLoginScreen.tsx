@@ -1,6 +1,5 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Spacing, Typography } from '@/constants/colors';
@@ -13,7 +12,7 @@ export default function AdminLoginScreen() {
   const navigation = useNavigation<any>();
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.inner}>
         <View style={styles.badge}>
           <MaterialCommunityIcons name="shield-lock" size={28} color="#F59E0B" />
@@ -35,7 +34,7 @@ export default function AdminLoginScreen() {
           <Text style={styles.backText}>Back to app</Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

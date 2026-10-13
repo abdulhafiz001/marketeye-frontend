@@ -13,11 +13,10 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useStore } from '@/store/useStore';
 import { Colors, Spacing, Typography } from '@/constants/colors';
-import { mapAuthUserToAppUser, updateProfileRequest } from '@/services/authApi';
+import { changePasswordRequest, mapAuthUserToAppUser, updateProfileRequest } from '@/services/authApi';
 import { isValidEmailShape, isValidPhone, normalizeEmail, normalizePhone, validateProfileName } from '@/utils/authValidation';
 
 export default function AccountSettingsScreen() {
@@ -27,6 +26,13 @@ export default function AccountSettingsScreen() {
   const [email, setEmail] = useState(user?.email || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [saving, setSaving] = useState(false);
+  const [passwordSectionOpen, setPasswordSectionOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   const handleSave = async () => {
     if (saving) return;
@@ -79,15 +85,54 @@ export default function AccountSettingsScreen() {
     }
   };
 
+  const handleChangePassword = async () => {
+    if (changingPassword) return;
+    if (!currentPassword.trim()) {
+      Alert.alert('Current password', 'Enter your current password.');
+      return;
+    }
+    if (newPassword.length < 8) {
+      Alert.alert('New password', 'Password must be at least 8 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      Alert.alert('Confirm password', 'New password and confirmation do not match.');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      await changePasswordRequest({
+        current_password: currentPassword,
+        password: newPassword,
+        password_confirmation: confirmPassword,
+      });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setPasswordSectionOpen(false);
+      Alert.alert('Password updated', 'You can sign in with your new password next time.');
+    } catch (e: any) {
+      const msg =
+        e?.response?.data?.errors?.current_password?.[0] ||
+        e?.response?.data?.errors?.password?.[0] ||
+        e?.response?.data?.message ||
+        'Could not update password.';
+      Alert.alert('Update failed', String(msg));
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <View style={styles.container}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Personal Information</Text>
+          <Text style={[styles.sectionTitle, styles.sectionTitleSpaced]}>Personal Information</Text>
 
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Full Name</Text>
@@ -153,6 +198,102 @@ export default function AccountSettingsScreen() {
           </View>
         </View>
 
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={styles.collapseHeader}
+            onPress={() => setPasswordSectionOpen((open) => !open)}
+            activeOpacity={0.8}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={styles.sectionTitle}>Change password</Text>
+              <Text style={styles.collapseHint}>Collapsed by default — tap to expand</Text>
+            </View>
+            <MaterialCommunityIcons
+              name={passwordSectionOpen ? 'chevron-up' : 'chevron-down'}
+              size={24}
+              color={Colors.text.secondary}
+            />
+          </TouchableOpacity>
+
+          {passwordSectionOpen ? (
+            <View style={styles.passwordBody}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Current password</Text>
+                <View style={styles.inputContainer}>
+                  <MaterialCommunityIcons name="lock-outline" size={20} color={Colors.text.secondary} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    value={currentPassword}
+                    onChangeText={setCurrentPassword}
+                    secureTextEntry={!showCurrentPassword}
+                    placeholder="Current password"
+                    placeholderTextColor={Colors.text.secondary}
+                    editable={!changingPassword}
+                  />
+                  <TouchableOpacity onPress={() => setShowCurrentPassword((v) => !v)}>
+                    <MaterialCommunityIcons
+                      name={showCurrentPassword ? 'eye-off-outline' : 'eye-outline'}
+                      size={20}
+                      color={Colors.text.secondary}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>New password</Text>
+                <View style={styles.inputContainer}>
+                  <MaterialCommunityIcons name="lock-plus-outline" size={20} color={Colors.text.secondary} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                    secureTextEntry={!showNewPassword}
+                    placeholder="At least 8 characters"
+                    placeholderTextColor={Colors.text.secondary}
+                    editable={!changingPassword}
+                  />
+                  <TouchableOpacity onPress={() => setShowNewPassword((v) => !v)}>
+                    <MaterialCommunityIcons
+                      name={showNewPassword ? 'eye-off-outline' : 'eye-outline'}
+                      size={20}
+                      color={Colors.text.secondary}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Confirm new password</Text>
+                <View style={styles.inputContainer}>
+                  <MaterialCommunityIcons name="lock-check-outline" size={20} color={Colors.text.secondary} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry={!showNewPassword}
+                    placeholder="Repeat new password"
+                    placeholderTextColor={Colors.text.secondary}
+                    editable={!changingPassword}
+                  />
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.saveButton, changingPassword && styles.saveButtonDisabled]}
+                onPress={handleChangePassword}
+                disabled={changingPassword}
+              >
+                {changingPassword ? (
+                  <ActivityIndicator color={Colors.primary.white} size="small" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Update Password</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          ) : null}
+        </View>
+
         <TouchableOpacity
           style={[styles.saveButton, saving && styles.saveButtonDisabled]}
           onPress={handleSave}
@@ -169,7 +310,7 @@ export default function AccountSettingsScreen() {
           )}
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -193,7 +334,25 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...Typography.h3,
     color: Colors.primary.deepBlue,
+    marginBottom: Spacing.xs,
+  },
+  sectionTitleSpaced: {
     marginBottom: Spacing.lg,
+  },
+  collapseHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  collapseHint: {
+    fontSize: 12,
+    color: Colors.text.secondary,
+  },
+  passwordBody: {
+    marginTop: Spacing.lg,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Colors.secondary.lightGray,
   },
   inputGroup: {
     marginBottom: Spacing.lg,

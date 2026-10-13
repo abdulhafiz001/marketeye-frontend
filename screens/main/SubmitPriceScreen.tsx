@@ -11,7 +11,6 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native'; 
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -199,7 +198,7 @@ export default function SubmitPriceScreen() {
 
   if (!isAuthenticated) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <View style={styles.container}>
         <View style={styles.center}>
           <MaterialCommunityIcons name="lock-outline" size={44} color={Colors.primary.deepBlue} />
           <Text style={styles.blockTitle}>Sign in to submit prices</Text>
@@ -219,13 +218,13 @@ export default function SubmitPriceScreen() {
             <Text style={styles.link}>Go back</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (success) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <View style={styles.container}>
         <View style={styles.center}>
           <Animated.View style={{ transform: [{ scale }] }}>
             <MaterialCommunityIcons name="check-decagram" size={72} color={Colors.primary.vibrantGreen} />
@@ -250,7 +249,7 @@ export default function SubmitPriceScreen() {
             <Text style={styles.primaryBtnText}>Done</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -263,7 +262,7 @@ export default function SubmitPriceScreen() {
     : null;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <View style={styles.container}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -452,7 +451,7 @@ export default function SubmitPriceScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -1,9 +1,8 @@
 import React from 'react';
 import { startOfflineQueueSync, stopOfflineQueueSync } from '@/services/offlineQueue';
 import { useStore } from '@/store/useStore';
-import { syncExpoPushTokenWithServer } from '@/services/deviceNotifications';
 
-/** Starts NetInfo flush for offline drafts + registers Expo push token when logged in. */
+/** Starts NetInfo flush for offline drafts when logged in. */
 export function OfflineQueueSync() {
   const isAuthenticated = useStore((s) => s.isAuthenticated);
 
@@ -13,7 +12,6 @@ export function OfflineQueueSync() {
       return;
     }
     startOfflineQueueSync();
-    void syncExpoPushTokenWithServer();
     return () => stopOfflineQueueSync();
   }, [isAuthenticated]);
 

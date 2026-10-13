@@ -23,7 +23,13 @@ export function isValidDisplayName(value: string): boolean {
   return name.length >= 2 && name.length <= 80 && DISPLAY_NAME.test(name);
 }
 
-export function validateSignupInput(input: { name: string; email: string; password: string; phone?: string }): string | null {
+export function validateSignupInput(input: {
+  name: string;
+  email: string;
+  password: string;
+  passwordConfirmation?: string;
+  phone?: string;
+}): string | null {
   const nameError = validateProfileName(input.name);
   if (nameError) {
     return nameError;
@@ -36,6 +42,9 @@ export function validateSignupInput(input: { name: string; email: string; passwo
   }
   if (input.password.length < 8) {
     return 'Password must be at least 8 characters.';
+  }
+  if (input.passwordConfirmation !== undefined && input.password !== input.passwordConfirmation) {
+    return 'Password and confirmation do not match.';
   }
   if (input.phone?.trim() && !isValidPhone(input.phone)) {
     return 'Phone must be 10 to 15 digits.';

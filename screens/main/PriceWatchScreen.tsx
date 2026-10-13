@@ -6,60 +6,39 @@ import {
   ScrollView,
   TouchableOpacity,
   Switch,
-  FlatList,
   Modal,
+  Alert,
   TextInput,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 
 import { useStore, getStoreState, setStoreState } from '@/store/useStore';
-import { Colors, Spacing, Typography } from '@/constants/colors';
+import { Colors, Spacing } from '@/constants/colors';
 import { fetchProducts, fetchProductDetail } from '@/services/catalogApi';
 import {
   createServerAlert,
   deleteServerAlert,
   fetchServerAlerts,
   updateServerAlert,
-  acknowledgeServerAlert,
 } from '@/services/alertsApi';
-import {
-  requestDeviceNotificationPermission,
-  syncExpoPushTokenWithServer,
-} from '@/services/deviceNotifications';
-import type { Alert as PriceAlertRule, InboxNotification } from '@/types';
+import type { Alert as PriceAlertRule } from '@/types';
 
 export default function PriceWatchScreen() {
   const navigation = useNavigation<any>();
-  const route = useRoute<any>();
-  const initialTab = (route.params?.initialTab || route.params?.tab || 'alerts') as 'alerts' | 'inbox';
-  const [activeTab, setActiveTab] = useState<'alerts' | 'inbox'>(initialTab);
-
-  useEffect(() => {
-    if (route.params?.initialTab || route.params?.tab) {
-      setActiveTab(route.params.initialTab || route.params.tab);
-    }
-  }, [route.params?.initialTab, route.params?.tab]);
 
   const alerts = useStore((state) => state.alerts);
   const notifications = useStore((state) => state.notifications);
-  const alertsEnabled = useStore((state) => state.alertsEnabled);
   const isAuthenticated = useStore((state) => state.isAuthenticated);
-  const setAlertsEnabled = useStore((state) => state.setAlertsEnabled);
   const toggleAlert = useStore((state) => state.toggleAlert);
   const removeAlert = useStore((state) => state.removeAlert);
-  const markNotificationRead = useStore((state) => state.markNotificationRead);
-  const markAllNotificationsRead = useStore((state) => state.markAllNotificationsRead);
-  const acknowledgeNotification = useStore((state) => state.acknowledgeNotification);
-  const acknowledgeAlert = useStore((state) => state.acknowledgeAlert);
-  const removeNotification = useStore((state) => state.removeNotification);
+  const patchAlert = useStore((state) => state.patchAlert);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadNotificationCount = notifications.filter((n) => !n.read).length;
 
   // Sync with backend alerts
   useEffect(() => {
@@ -72,7 +51,6 @@ export default function PriceWatchScreen() {
           const local = currentLocal.find((la) => la.id === sa.id);
           if (!local) return sa;
 
-          // Preserve whichever has the newer lastTriggeredAt
           let latestTriggered = sa.lastTriggeredAt;
           if (local.lastTriggeredAt) {
             if (!sa.lastTriggeredAt || new Date(local.lastTriggeredAt).getTime() > new Date(sa.lastTriggeredAt).getTime()) {
@@ -86,7 +64,6 @@ export default function PriceWatchScreen() {
           };
         });
         setStoreState({ alerts: merged });
-        await syncExpoPushTokenWithServer();
       } catch {
         // Keep local cache if sync fails.
       }
@@ -95,6 +72,8 @@ export default function PriceWatchScreen() {
 
   // Modal State for adding alert
   const [modalOpen, setModalOpen] = useState(false);
+  const [editingAlertId, setEditingAlertId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PriceAlertRule | null>(null);
   const [search, setSearch] = useState('');
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [selectedMarketId, setSelectedMarketId] = useState<number | null>(null);
@@ -119,147 +98,156 @@ export default function PriceWatchScreen() {
     if (!selectedProductId || selectedMarketId === null || !productDetailQ.data?.markets) {
       return null;
     }
-    return productDetailQ.data.markets.find((row) => row.market.id === selectedMarketId) ?? null;
-  }, [selectedMarketId, selectedProductId, productDetailQ.data]);
+    return productDetailQ.data.markets.find((m) => m.market.id === selectedMarketId) ?? null;
+  }, [selectedProductId, selectedMarketId, productDetailQ.data]);
 
-  const estimatePrice = selectedMarketRow?.avg_price ?? null;
+  const estimatePrice = selectedMarketRow ? selectedMarketRow.avg_price : null;
 
-  const openModal = () => {
-    setModalOpen(true);
-    setSearch('');
+  const resetModalFields = () => {
     setSelectedProductId(null);
     setSelectedMarketId(null);
-    setAlertCondition('below');
+    setSearch('');
     setTargetPrice('');
+    setAlertCondition('below');
+    setEditingAlertId(null);
   };
 
-  const submitRule = async () => {
-    const product =
-      filteredProducts.find((p) => p.id === selectedProductId) ??
-      productsQ.data?.find((p) => p.id === selectedProductId) ??
-      null;
-    const marketRow =
-      productDetailQ.data?.markets.find((row) => row.market.id === selectedMarketId) ?? selectedMarketRow;
-    if (!product || !marketRow || !targetPrice.trim() || Number.isNaN(parseFloat(targetPrice))) return;
+  const openModal = () => {
+    resetModalFields();
+    setModalOpen(true);
+  };
 
-    await requestDeviceNotificationPermission();
-    await syncExpoPushTokenWithServer();
+  const openEditModal = (item: PriceAlertRule) => {
+    const productId = Number(item.commodityId);
+    if (!Number.isFinite(productId)) return;
+    setEditingAlertId(item.id);
+    setSelectedProductId(productId);
+    setSelectedMarketId(item.marketId ?? null);
+    setSearch(item.commodityName);
+    setAlertCondition(item.condition);
+    setTargetPrice(String(item.targetPrice));
+    setModalOpen(true);
+  };
 
-    try {
-      if (isAuthenticated) {
-        const created = await createServerAlert({
-          product_id: product.id,
-          market_id: marketRow.market.id,
-          target_price: parseFloat(targetPrice),
-          condition: alertCondition,
-        });
-        getStoreState().addAlert({
-          ...created,
-          lastKnownPrice: estimatePrice !== null ? estimatePrice : created.lastKnownPrice,
-        });
-      } else {
-        getStoreState().addAlert({
-          id: `rule:${product.id}:${marketRow.market.id}:${Date.now()}`,
-          commodityId: String(product.id),
-          commodityName: product.name,
-          marketId: marketRow.market.id,
-          marketName: marketRow.market.name,
-          condition: alertCondition,
-          targetPrice: parseFloat(targetPrice),
-          isActive: true,
-          createdAt: new Date().toISOString(),
-          lastKnownPrice: estimatePrice !== null ? estimatePrice : undefined,
-        });
-      }
-    } catch {
-      getStoreState().addAlert({
-        id: `rule:${product.id}:${marketRow.market.id}:${Date.now()}`,
-        commodityId: String(product.id),
-        commodityName: product.name,
-        marketId: marketRow.market.id,
-        marketName: marketRow.market.name,
-        condition: alertCondition,
-        targetPrice: parseFloat(targetPrice),
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        lastKnownPrice: estimatePrice !== null ? estimatePrice : undefined,
-      });
-    }
+  const closeModal = () => {
     setModalOpen(false);
+    resetModalFields();
   };
 
-  const handleGotIt = async (item: InboxNotification) => {
-    acknowledgeNotification(item.id);
-    if (item.alertId) {
-      acknowledgeAlert(item.alertId, 'acknowledge');
-      if (isAuthenticated && /^\d+$/.test(item.alertId)) {
+  const handleSaveAlert = async () => {
+    if (!selectedProductId || !selectedMarketRow) return;
+    const priceNum = parseFloat(targetPrice.replace(/[^0-9.]/g, ''));
+    if (isNaN(priceNum) || priceNum <= 0) return;
+
+    const prod = productsQ.data?.find((p) => p.id === selectedProductId);
+    const prodName = prod?.name || 'Item';
+    const marketName = selectedMarketRow.market.name;
+
+    if (editingAlertId) {
+      patchAlert(editingAlertId, {
+        commodityId: String(selectedProductId),
+        commodityName: prodName,
+        marketId: selectedMarketRow.market.id,
+        marketName,
+        condition: alertCondition,
+        targetPrice: priceNum,
+        lastKnownPrice: estimatePrice ?? undefined,
+      });
+      closeModal();
+
+      if (isAuthenticated && /^\d+$/.test(editingAlertId)) {
         try {
-          await acknowledgeServerAlert(item.alertId, 'acknowledge');
+          const updated = await updateServerAlert(editingAlertId, {
+            target_price: priceNum,
+            condition: alertCondition,
+          });
+          patchAlert(editingAlertId, updated);
         } catch {
-          // Keep local state updated
+          Alert.alert('Update failed', 'Could not save changes. Try again.');
         }
+      }
+      return;
+    }
+
+    const localId = `alert_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    const newRule: PriceAlertRule = {
+      id: localId,
+      commodityId: String(selectedProductId),
+      commodityName: prodName,
+      condition: alertCondition,
+      targetPrice: priceNum,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      marketId: selectedMarketRow.market.id,
+      marketName: marketName,
+      lastKnownPrice: estimatePrice ?? undefined,
+    };
+
+    getStoreState().addAlert(newRule);
+    closeModal();
+
+    if (isAuthenticated) {
+      try {
+        const created = await createServerAlert({
+          product_id: selectedProductId,
+          market_id: selectedMarketRow.market.id,
+          condition: alertCondition,
+          target_price: priceNum,
+        });
+        const currentAlerts = getStoreState().alerts;
+        const updated = currentAlerts.map((a) => (a.id === localId ? { ...a, id: created.id } : a));
+        setStoreState({ alerts: updated });
+      } catch {
+        // Keep optimistic local alert
+      }
+    }
+  };
+
+  const confirmDeleteAlert = (item: PriceAlertRule) => {
+    setDeleteTarget(item);
+  };
+
+  const performDeleteAlert = async () => {
+    if (!deleteTarget) return;
+    const item = deleteTarget;
+    setDeleteTarget(null);
+    removeAlert(item.id);
+    if (isAuthenticated && /^\d+$/.test(item.id)) {
+      try {
+        await deleteServerAlert(item.id);
+      } catch {
+        getStoreState().addAlert(item);
+        Alert.alert('Delete failed', 'Could not remove this alert. Try again.');
       }
     }
   };
 
   const renderRule = (item: PriceAlertRule) => {
-    const when =
-      item.condition === 'below'
-        ? `Target: falls below ₦${item.targetPrice.toLocaleString()}`
-        : `Target: rises above ₦${item.targetPrice.toLocaleString()}`;
-    const px =
-      typeof item.lastKnownPrice === 'number' && Number.isFinite(item.lastKnownPrice)
-        ? `Current Price: ₦${item.lastKnownPrice.toLocaleString()}`
-        : 'Awaiting market update';
-
-    const isHit =
-      typeof item.lastKnownPrice === 'number' &&
-      Number.isFinite(item.lastKnownPrice) &&
-      (item.condition === 'below'
-        ? item.lastKnownPrice <= item.targetPrice
-        : item.lastKnownPrice >= item.targetPrice);
+    const isBelow = item.condition === 'below';
+    const conditionText = isBelow ? 'Drops below' : 'Rises above';
 
     return (
-      <View key={item.id} style={[styles.ruleCard, !item.isActive && styles.ruleCardMuted]}>
-        <View style={styles.ruleLeft}>
-          <View style={[styles.ruleIconWrap, isHit && styles.ruleIconWrapHit]}>
-            <MaterialCommunityIcons
-              name={isHit ? 'bell-check' : item.condition === 'below' ? 'trending-down' : 'trending-up'}
-              size={24}
-              color={isHit ? '#059669' : item.condition === 'below' ? '#16A34A' : '#DC2626'}
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <Text style={styles.ruleProduct}>{item.commodityName}</Text>
-              {isHit && (
-                <View style={styles.hitPill}>
-                  <Text style={styles.hitPillText}>Target Met</Text>
-                </View>
-              )}
-            </View>
-            <Text style={styles.ruleMarket}>{item.marketName}</Text>
-            <Text style={styles.ruleHint}>{when}</Text>
-            <Text style={styles.rulePx}>{px}</Text>
+      <View key={item.id} style={[styles.ruleCard, !item.isActive && styles.ruleCardInactive]}>
+        <View style={styles.ruleIconWrap}>
+          <MaterialCommunityIcons
+            name={isBelow ? 'trending-down' : 'trending-up'}
+            size={22}
+            color={isBelow ? '#16A34A' : '#DC2626'}
+          />
+        </View>
 
-            {isHit && item.isActive && (
-              <TouchableOpacity
-                style={styles.ruleGotItBtn}
-                onPress={async () => {
-                  acknowledgeAlert(item.id, 'acknowledge');
-                  if (isAuthenticated && /^\d+$/.test(item.id)) {
-                    try {
-                      await acknowledgeServerAlert(item.id, 'acknowledge');
-                    } catch {}
-                  }
-                }}
-                activeOpacity={0.8}
-              >
-                <MaterialCommunityIcons name="check-circle-outline" size={14} color={Colors.primary.deepBlue} />
-                <Text style={styles.ruleGotItText}>Got it · Mute repeats</Text>
-              </TouchableOpacity>
-            )}
+        <View style={styles.ruleBody}>
+          <Text style={styles.ruleTitle}>{item.commodityName}</Text>
+          <Text style={styles.ruleMarket}>{item.marketName || 'All Markets'}</Text>
+
+          <View style={styles.ruleDetails}>
+            <Text style={styles.ruleCond}>{conditionText}</Text>
+            <Text style={styles.rulePrice}>₦{item.targetPrice.toLocaleString()}</Text>
           </View>
+
+          {item.lastKnownPrice ? (
+            <Text style={styles.lastKnown}>Latest recorded price: ₦{item.lastKnownPrice.toLocaleString()}</Text>
+          ) : null}
         </View>
 
         <View style={styles.ruleRight}>
@@ -278,80 +266,14 @@ export default function PriceWatchScreen() {
             trackColor={{ false: '#E5E7EB', true: Colors.primary.deepBlue }}
             thumbColor={'#FFF'}
           />
-          <TouchableOpacity
-            onPress={async () => {
-              removeAlert(item.id);
-              if (isAuthenticated && /^\d+$/.test(item.id)) {
-                try {
-                  await deleteServerAlert(item.id);
-                } catch {
-                  getStoreState().addAlert(item);
-                }
-              }
-            }}
-            hitSlop={8}
-            style={styles.deleteBtn}
-          >
-            <MaterialCommunityIcons name="trash-can-outline" size={20} color="#EF4444" />
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
-
-  const renderInboxItem = ({ item }: { item: InboxNotification }) => {
-    const isAcknowledged = item.acknowledged || (item.read && !item.alertId);
-
-    return (
-      <View style={[styles.inboxCard, item.read ? styles.inboxCardRead : styles.inboxCardUnread]}>
-        <View style={[styles.strip, item.read ? styles.stripRead : styles.stripNew]} />
-        <View style={styles.inboxInner}>
-          <TouchableOpacity
-            style={{ flex: 1, paddingRight: 8 }}
-            activeOpacity={0.88}
-            onPress={() => {
-              if (!item.read) markNotificationRead(item.id);
-            }}
-          >
-            <View style={styles.inboxHeaderRow}>
-              <View style={styles.tagWrap}>
-                <MaterialCommunityIcons name="bell-ring-outline" size={13} color={Colors.primary.deepBlue} />
-                <Text style={styles.inboxCategoryTag}>Price Target Alert</Text>
-              </View>
-              <Text style={styles.inboxTime}>
-                {new Date(item.createdAt).toLocaleString(undefined, {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  day: 'numeric',
-                  month: 'short',
-                })}
-              </Text>
-            </View>
-
-            <Text style={[styles.inboxText, item.read && styles.inboxTextMuted]}>{item.message}</Text>
-
-            <View style={styles.inboxActionRow}>
-              {!isAcknowledged ? (
-                <TouchableOpacity
-                  style={styles.gotItBtn}
-                  onPress={() => handleGotIt(item)}
-                  activeOpacity={0.8}
-                >
-                  <MaterialCommunityIcons name="check-circle-outline" size={16} color="#FFF" />
-                  <Text style={styles.gotItBtnText}>Got it</Text>
-                </TouchableOpacity>
-              ) : (
-                <View style={styles.acknowledgedBadge}>
-                  <MaterialCommunityIcons name="check" size={13} color="#059669" />
-                  <Text style={styles.acknowledgedText}>Got it · Acknowledged</Text>
-                </View>
-              )}
-            </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity hitSlop={10} onPress={() => removeNotification(item.id)} style={styles.trashBtn}>
-            <MaterialCommunityIcons name="trash-can-outline" size={18} color="#9CA3AF" />
-          </TouchableOpacity>
+          <View style={styles.ruleActions}>
+            <TouchableOpacity onPress={() => openEditModal(item)} hitSlop={8} style={styles.iconActionBtn}>
+              <MaterialCommunityIcons name="pencil-outline" size={20} color={Colors.primary.deepBlue} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => confirmDeleteAlert(item)} hitSlop={8} style={styles.iconActionBtn}>
+              <MaterialCommunityIcons name="trash-can-outline" size={20} color="#EF4444" />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     );
@@ -360,12 +282,12 @@ export default function PriceWatchScreen() {
   const canSubmit = Boolean(selectedMarketRow && targetPrice.trim());
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       {/* Top Header */}
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Price Watch & Alerts</Text>
-          <Text style={styles.headerSubtitle}>Automated price notifications for Abuja markets</Text>
+          <Text style={styles.headerTitle}>Price Watch</Text>
+          <Text style={styles.headerSubtitle}>Automated target alerts for Abuja markets</Text>
         </View>
         <TouchableOpacity style={styles.createAlertBtn} onPress={openModal} activeOpacity={0.85}>
           <MaterialCommunityIcons name="plus" size={20} color="#FFF" />
@@ -373,112 +295,90 @@ export default function PriceWatchScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Global Push Switch Banner */}
-      <View style={styles.pushBanner}>
-        <View style={{ flex: 1, marginRight: 12 }}>
-          <Text style={styles.pushTitle}>Push Notifications</Text>
-          <Text style={styles.pushDesc}>Receive instant background alerts when prices match your targets.</Text>
+      {/* Direct Link to Dedicated Notifications Page */}
+      <TouchableOpacity
+        style={styles.notificationsLinkRow}
+        onPress={() => navigation.navigate('Notifications')}
+        activeOpacity={0.7}
+      >
+        <View style={styles.notificationsLinkLeft}>
+          <MaterialCommunityIcons name="bell-badge-outline" size={20} color={Colors.primary.deepBlue} />
+          <Text style={styles.notificationsLinkText}>View Alert Notifications</Text>
         </View>
-        <Switch
-          value={alertsEnabled}
-          onValueChange={setAlertsEnabled}
-          trackColor={{ false: '#E5E7EB', true: Colors.primary.deepBlue }}
-          thumbColor={'#FFF'}
-        />
-      </View>
-
-      {/* Segmented Tab Controls */}
-      <View style={styles.segmentContainer}>
-        <TouchableOpacity
-          style={[styles.segmentTab, activeTab === 'alerts' && styles.segmentTabActive]}
-          onPress={() => setActiveTab('alerts')}
-        >
-          <MaterialCommunityIcons
-            name="bell-ring-outline"
-            size={18}
-            color={activeTab === 'alerts' ? Colors.primary.deepBlue : '#6B7280'}
-          />
-          <Text style={[styles.segmentText, activeTab === 'alerts' && styles.segmentTextActive]}>
-            Active Targets ({alerts.length})
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.segmentTab, activeTab === 'inbox' && styles.segmentTabActive]}
-          onPress={() => setActiveTab('inbox')}
-        >
-          <MaterialCommunityIcons
-            name="inbox"
-            size={18}
-            color={activeTab === 'inbox' ? Colors.primary.deepBlue : '#6B7280'}
-          />
-          <Text style={[styles.segmentText, activeTab === 'inbox' && styles.segmentTextActive]}>
-            Alert Inbox {unreadCount > 0 ? `(${unreadCount})` : ''}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Content View */}
-      {activeTab === 'alerts' ? (
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {alerts.length === 0 ? (
-            <View style={styles.emptyWrap}>
-              <MaterialCommunityIcons name="bell-plus-outline" size={56} color="#CBD5E1" />
-              <Text style={styles.emptyTitle}>No Active Price Targets</Text>
-              <Text style={styles.emptyDesc}>
-                Set target price alerts for products in your favorite Abuja markets. We will ping your phone the moment verified submissions hit your price.
-              </Text>
-              <TouchableOpacity style={styles.emptyBtn} onPress={openModal}>
-                <Text style={styles.emptyBtnText}>Create Your First Alert</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={{ gap: 12 }}>{alerts.map((a) => renderRule(a))}</View>
-          )}
-        </ScrollView>
-      ) : (
-        <View style={{ flex: 1 }}>
-          {notifications.length > 0 && unreadCount > 0 ? (
-            <View style={styles.inboxActions}>
-              <TouchableOpacity onPress={markAllNotificationsRead}>
-                <Text style={styles.markAllText}>Mark all as read</Text>
-              </TouchableOpacity>
+        <View style={styles.notificationsLinkRight}>
+          {unreadNotificationCount > 0 ? (
+            <View style={styles.unreadCountPill}>
+              <Text style={styles.unreadCountText}>{unreadNotificationCount} new</Text>
             </View>
           ) : null}
-
-          {notifications.length === 0 ? (
-            <View style={styles.emptyWrap}>
-              <MaterialCommunityIcons name="bell-sleep-outline" size={56} color="#CBD5E1" />
-              <Text style={styles.emptyTitle}>Your Inbox is Clear</Text>
-              <Text style={styles.emptyDesc}>
-                Triggered price drops, market swings, and community updates will appear here.
-              </Text>
-            </View>
-          ) : (
-            <FlatList
-              data={notifications}
-              keyExtractor={(item) => item.id}
-              renderItem={renderInboxItem}
-              contentContainerStyle={styles.scrollContent}
-              showsVerticalScrollIndicator={false}
-            />
-          )}
+          <MaterialCommunityIcons name="chevron-right" size={20} color="#94A3B8" />
         </View>
-      )}
+      </TouchableOpacity>
+
+      {/* Active Rules List */}
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Active Target Rules ({alerts.length})</Text>
+        </View>
+
+        {alerts.length === 0 ? (
+          <View style={styles.emptyWrap}>
+            <View style={styles.emptyIconCircle}>
+              <MaterialCommunityIcons name="bell-plus-outline" size={48} color="#94A3B8" />
+            </View>
+            <Text style={styles.emptyTitle}>No Active Price Targets</Text>
+            <Text style={styles.emptyDesc}>
+              Set target price alerts for products in your favorite Abuja markets. We will ping your phone the moment verified submissions hit your target price.
+            </Text>
+            <TouchableOpacity style={styles.emptyBtn} onPress={openModal} activeOpacity={0.85}>
+              <Text style={styles.emptyBtnText}>Create Your First Alert</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={{ gap: 12 }}>{alerts.map((a) => renderRule(a))}</View>
+        )}
+      </ScrollView>
 
       {/* New Alert Modal Sheet */}
-      <Modal visible={modalOpen} animationType="slide" transparent onRequestClose={() => setModalOpen(false)}>
+      <Modal visible={!!deleteTarget} animationType="fade" transparent onRequestClose={() => setDeleteTarget(null)}>
+        <View style={styles.confirmBackdrop}>
+          <View style={styles.confirmCard}>
+            <Text style={styles.confirmTitle}>Delete price alert?</Text>
+            <Text style={styles.confirmBody}>
+              {deleteTarget
+                ? `Remove your ${deleteTarget.commodityName} target at ${deleteTarget.marketName || 'this market'}?`
+                : ''}
+            </Text>
+            <View style={styles.confirmActions}>
+              <TouchableOpacity style={styles.confirmCancelBtn} onPress={() => setDeleteTarget(null)}>
+                <Text style={styles.confirmCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.confirmDeleteBtn} onPress={performDeleteAlert}>
+                <Text style={styles.confirmDeleteText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={modalOpen} animationType="slide" transparent onRequestClose={closeModal}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
           <View style={styles.sheetCard}>
             <View style={styles.sheetHandle} />
             <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>Create Price Alert</Text>
-              <TouchableOpacity onPress={() => setModalOpen(false)}>
+              <Text style={styles.sheetTitle}>{editingAlertId ? 'Edit Price Alert' : 'Create Price Alert'}</Text>
+              <TouchableOpacity onPress={closeModal}>
                 <MaterialCommunityIcons name="close" size={24} color="#6B7280" />
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              nestedScrollEnabled={true}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingBottom: 24 }}
+            >
+              {/* STEP 1: Search & Scrollable Products */}
               <Text style={styles.modalLabel}>1. Search Product</Text>
               <View style={styles.searchBar}>
                 <MaterialCommunityIcons name="magnify" size={22} color="#64748B" />
@@ -492,27 +392,46 @@ export default function PriceWatchScreen() {
                 />
               </View>
 
-              {!selectedProductId ? (
-                <View style={styles.productPicker}>
-                  {filteredProducts.map((item) => (
-                    <TouchableOpacity
-                      key={item.id}
-                      style={styles.productOption}
-                      onPress={() => {
-                        setSelectedProductId(item.id);
-                        setSelectedMarketId(null);
-                      }}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.productName}>{item.name}</Text>
-                        <Text style={styles.productUnit}>{item.unit}</Text>
-                      </View>
-                      <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
-                    </TouchableOpacity>
-                  ))}
+              {editingAlertId ? (
+                <View style={styles.editingBanner}>
+                  <MaterialCommunityIcons name="information-outline" size={18} color={Colors.primary.deepBlue} />
+                  <Text style={styles.editingBannerText}>
+                    Update target price or condition below. Product and stall stay the same unless you change them.
+                  </Text>
                 </View>
               ) : null}
 
+              {!selectedProductId && !editingAlertId ? (
+                <View>
+                  <Text style={styles.scrollHint}>Scroll down to view all available products ({filteredProducts.length})</Text>
+                  <ScrollView
+                    style={styles.productPickerScroll}
+                    contentContainerStyle={styles.productPickerScrollContent}
+                    nestedScrollEnabled={true}
+                    showsVerticalScrollIndicator={true}
+                    keyboardShouldPersistTaps="handled"
+                  >
+                    {filteredProducts.map((item) => (
+                      <TouchableOpacity
+                        key={item.id}
+                        style={styles.productOption}
+                        onPress={() => {
+                          setSelectedProductId(item.id);
+                          setSelectedMarketId(null);
+                        }}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.productName}>{item.name}</Text>
+                          <Text style={styles.productUnit}>{item.unit}</Text>
+                        </View>
+                        <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              ) : null}
+
+              {/* STEP 2: Selected Product & Scrollable Market Stall Prices */}
               {selectedProductId ? (
                 <View style={{ gap: 12 }}>
                   <TouchableOpacity style={styles.repickRow} onPress={() => setSelectedProductId(null)}>
@@ -520,36 +439,51 @@ export default function PriceWatchScreen() {
                     <Text style={styles.repickText}>Change product selection</Text>
                   </TouchableOpacity>
 
-                  <Text style={styles.modalLabel}>2. Select Market Stall</Text>
+                  <Text style={styles.modalLabel}>2. Select Market Stall & Current Price</Text>
                   {productDetailQ.isLoading ? (
                     <ActivityIndicator style={{ marginVertical: 12 }} />
                   ) : productDetailQ.data?.markets?.length ? (
-                    <View style={styles.marketOptions}>
-                      {productDetailQ.data.markets.map((item) => {
-                        const isSelected = selectedMarketId === item.market.id;
-                        return (
-                          <TouchableOpacity
-                            key={item.market.id}
-                            style={[styles.marketCard, isSelected && styles.marketCardActive]}
-                            onPress={() => setSelectedMarketId(item.market.id)}
-                          >
-                            <View style={{ flex: 1 }}>
-                              <Text style={[styles.marketName, isSelected && styles.marketNameActive]}>
-                                {item.market.name}
-                              </Text>
-                              <Text style={styles.marketArea}>{item.market.area || 'Abuja'}</Text>
-                            </View>
-                            <Text style={[styles.marketPrice, isSelected && styles.marketPriceActive]}>
-                              ₦{item.avg_price.toLocaleString()}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
+                    <View>
+                      <Text style={styles.scrollHint}>
+                        Scroll to see and compare all market stall prices ({productDetailQ.data.markets.length})
+                      </Text>
+                      <ScrollView
+                        style={styles.marketOptionsScroll}
+                        contentContainerStyle={styles.marketOptionsScrollContent}
+                        nestedScrollEnabled={true}
+                        showsVerticalScrollIndicator={true}
+                        keyboardShouldPersistTaps="handled"
+                      >
+                        {productDetailQ.data.markets.map((item) => {
+                          const isSelected = selectedMarketId === item.market.id;
+                          return (
+                            <TouchableOpacity
+                              key={item.market.id}
+                              style={[styles.marketCard, isSelected && styles.marketCardActive]}
+                              onPress={() => setSelectedMarketId(item.market.id)}
+                            >
+                              <View style={{ flex: 1 }}>
+                                <Text style={[styles.marketName, isSelected && styles.marketNameActive]}>
+                                  {item.market.name}
+                                </Text>
+                                <Text style={styles.marketArea}>{item.market.area || 'Abuja'}</Text>
+                              </View>
+                              <View style={styles.priceContainer}>
+                                <Text style={[styles.marketPrice, isSelected && styles.marketPriceActive]}>
+                                  ₦{item.avg_price.toLocaleString()}
+                                </Text>
+                                <Text style={styles.marketPriceSub}>avg price</Text>
+                              </View>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </ScrollView>
                     </View>
                   ) : (
                     <Text style={styles.noMarkets}>No market data recorded yet for this item.</Text>
                   )}
 
+                  {/* STEP 3 & 4: Condition and Target Price */}
                   {selectedMarketRow ? (
                     <>
                       <Text style={styles.modalLabel}>3. Trigger Condition</Text>
@@ -585,20 +519,22 @@ export default function PriceWatchScreen() {
 
                       <Text style={styles.modalLabel}>4. Target Price (₦)</Text>
                       <TextInput
-                        style={styles.priceInput}
-                        placeholder="e.g. 7500"
-                        placeholderTextColor="#9CA3AF"
-                        keyboardType="numeric"
                         value={targetPrice}
                         onChangeText={setTargetPrice}
+                        placeholder={estimatePrice ? `e.g. ${(estimatePrice * 0.9).toFixed(0)}` : 'Enter target price'}
+                        placeholderTextColor="#94A3B8"
+                        keyboardType="numeric"
+                        style={styles.priceInput}
                       />
 
                       <TouchableOpacity
                         style={[styles.saveBtn, !canSubmit && styles.saveBtnDisabled]}
                         disabled={!canSubmit}
-                        onPress={submitRule}
+                        onPress={handleSaveAlert}
                       >
-                        <Text style={styles.saveBtnText}>Save Price Alert</Text>
+                        <Text style={styles.saveBtnText}>
+                          {editingAlertId ? 'Save Changes' : 'Save Target Alert'}
+                        </Text>
                       </TouchableOpacity>
                     </>
                   ) : null}
@@ -608,140 +544,244 @@ export default function PriceWatchScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
   header: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
     backgroundColor: '#FFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
   },
-  headerTitle: { ...Typography.h2, fontSize: 22, color: Colors.primary.deepBlue, fontWeight: '900' },
-  headerSubtitle: { color: '#64748B', fontSize: 13, marginTop: 2, fontWeight: '600' },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#0F172A',
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+    fontWeight: '600',
+  },
   createAlertBtn: {
-    backgroundColor: Colors.primary.deepBlue,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    backgroundColor: Colors.primary.deepBlue,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 9,
     borderRadius: 12,
+    gap: 4,
   },
-  createAlertText: { color: '#FFF', fontWeight: '800', fontSize: 13 },
-  pushBanner: {
-    margin: Spacing.lg,
-    marginBottom: Spacing.sm,
-    padding: Spacing.md,
-    borderRadius: 16,
-    backgroundColor: '#EFF6FF',
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
+  createAlertText: {
+    color: '#FFF',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  notificationsLinkRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: '#EFF6FF',
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#DBEAFE',
   },
-  pushTitle: { fontWeight: '800', fontSize: 14, color: '#1E3A8A' },
-  pushDesc: { color: '#3B82F6', fontSize: 12, marginTop: 2, fontWeight: '600', lineHeight: 16 },
-  segmentContainer: {
-    flexDirection: 'row',
-    marginHorizontal: Spacing.lg,
-    marginVertical: Spacing.sm,
-    backgroundColor: '#E2E8F0',
-    borderRadius: 14,
-    padding: 4,
-  },
-  segmentTab: {
-    flex: 1,
+  notificationsLinkLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 8,
+  },
+  notificationsLinkText: {
+    color: Colors.primary.deepBlue,
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  notificationsLinkRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
-    paddingVertical: 10,
+  },
+  unreadCountPill: {
+    backgroundColor: Colors.primary.deepBlue,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
     borderRadius: 10,
   },
-  segmentTabActive: {
-    backgroundColor: '#FFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+  unreadCountText: {
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: '800',
   },
-  segmentText: { fontSize: 13, fontWeight: '700', color: '#64748B' },
-  segmentTextActive: { color: Colors.primary.deepBlue, fontWeight: '900' },
-  scrollContent: { padding: Spacing.lg, paddingBottom: 120 },
+  sectionHeader: {
+    marginBottom: 8,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#475569',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  scrollContent: {
+    padding: Spacing.md,
+    paddingBottom: Spacing.xxl,
+  },
   ruleCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: '#FFF',
     borderRadius: 16,
+    padding: Spacing.md,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    padding: Spacing.md,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
     elevation: 1,
   },
-  ruleCardMuted: { opacity: 0.6 },
-  ruleLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  ruleCardInactive: {
+    opacity: 0.6,
+  },
   ruleIconWrap: {
     width: 44,
     height: 44,
-    borderRadius: 14,
+    borderRadius: 12,
     backgroundColor: '#F1F5F9',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 12,
   },
-  ruleProduct: { fontWeight: '900', fontSize: 16, color: '#0F172A' },
-  ruleIconWrapHit: { backgroundColor: '#ECFDF5' },
-  hitPill: {
-    backgroundColor: '#DCFCE7',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#86EFAC',
+  ruleBody: {
+    flex: 1,
   },
-  hitPillText: {
-    color: '#15803D',
+  ruleTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#0F172A',
+  },
+  ruleMarket: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  ruleDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  ruleCond: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#475569',
+  },
+  rulePrice: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: Colors.primary.deepBlue,
+  },
+  lastKnown: {
     fontSize: 11,
-    fontWeight: '800',
+    color: '#94A3B8',
+    marginTop: 4,
   },
-  ruleMarket: { color: '#64748B', fontWeight: '700', fontSize: 12, marginTop: 2 },
-  ruleHint: { color: Colors.primary.deepBlue, fontWeight: '700', fontSize: 13, marginTop: 4 },
-  rulePx: { color: '#94A3B8', fontSize: 11, fontWeight: '600', marginTop: 2 },
-  ruleGotItBtn: {
+  ruleRight: {
+    alignItems: 'flex-end',
+    gap: 10,
+    marginLeft: 12,
+  },
+  ruleActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-    marginTop: 6,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
   },
-  ruleGotItText: {
-    color: Colors.primary.deepBlue,
-    fontSize: 11,
+  iconActionBtn: {
+    padding: 4,
+  },
+  confirmBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.lg,
+  },
+  confirmCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: Spacing.lg,
+    width: '100%',
+    maxWidth: 340,
+  },
+  confirmTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#0F172A',
+    marginBottom: 8,
+  },
+  confirmBody: {
+    fontSize: 14,
+    color: '#64748B',
+    lineHeight: 20,
+    marginBottom: Spacing.lg,
+  },
+  confirmActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  confirmCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+  },
+  confirmCancelText: {
     fontWeight: '800',
+    color: '#475569',
   },
-  ruleRight: { alignItems: 'flex-end', gap: 10, marginLeft: 12 },
-  deleteBtn: { padding: 4 },
+  confirmDeleteBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+  },
+  confirmDeleteText: {
+    fontWeight: '800',
+    color: '#DC2626',
+  },
+  editingBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+  },
+  editingBannerText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#334155',
+    lineHeight: 18,
+    fontWeight: '600',
+  },
   emptyWrap: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -749,8 +789,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     gap: 12,
   },
-  emptyTitle: { fontSize: 18, fontWeight: '900', color: '#1E293B' },
-  emptyDesc: { textAlign: 'center', color: '#64748B', lineHeight: 20, fontSize: 13, fontWeight: '500' },
+  emptyIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#1E293B',
+  },
+  emptyDesc: {
+    textAlign: 'center',
+    color: '#64748B',
+    lineHeight: 20,
+    fontSize: 13,
+    fontWeight: '500',
+  },
   emptyBtn: {
     marginTop: 8,
     backgroundColor: Colors.primary.deepBlue,
@@ -758,98 +816,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 12,
   },
-  emptyBtnText: { color: '#FFF', fontWeight: '800', fontSize: 14 },
-  inboxActions: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: 8,
-    alignItems: 'flex-end',
-    backgroundColor: '#FFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  markAllText: { color: Colors.primary.deepBlue, fontWeight: '800', fontSize: 13 },
-  inboxCard: {
-    flexDirection: 'row',
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    marginBottom: 10,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  inboxCardUnread: { borderColor: '#93C5FD', backgroundColor: '#F8FAFC' },
-  inboxCardRead: { opacity: 0.85 },
-  strip: { width: 5 },
-  stripNew: { backgroundColor: Colors.primary.deepBlue },
-  stripRead: { backgroundColor: '#CBD5E1' },
-  inboxInner: { flex: 1, flexDirection: 'row', alignItems: 'flex-start', padding: Spacing.md },
-  inboxHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 6,
-  },
-  tagWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  inboxCategoryTag: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: Colors.primary.deepBlue,
-  },
-  inboxText: { fontWeight: '700', color: '#0F172A', fontSize: 14, lineHeight: 20 },
-  inboxTextMuted: { color: '#64748B', fontWeight: '500' },
-  inboxTime: { fontSize: 11, fontWeight: '600', color: '#94A3B8' },
-  inboxActionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10,
-    gap: 8,
-  },
-  gotItBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: Colors.primary.deepBlue,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 10,
-    shadowColor: Colors.primary.deepBlue,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  gotItBtnText: {
+  emptyBtnText: {
     color: '#FFF',
     fontWeight: '800',
-    fontSize: 12,
-  },
-  acknowledgedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#ECFDF5',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-  },
-  acknowledgedText: {
-    color: '#059669',
-    fontWeight: '700',
-    fontSize: 11,
-  },
-  trashBtn: {
-    padding: 6,
-    marginTop: 2,
+    fontSize: 14,
   },
   modalOverlay: {
     flex: 1,
@@ -877,8 +847,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: Spacing.md,
   },
-  sheetTitle: { fontSize: 20, fontWeight: '900', color: '#0F172A' },
-  modalLabel: { fontSize: 13, fontWeight: '800', color: '#334155', marginTop: 12, marginBottom: 8 },
+  sheetTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#0F172A',
+  },
+  modalLabel: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#334155',
+    marginTop: 14,
+    marginBottom: 6,
+  },
+  scrollHint: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
+    marginBottom: 6,
+  },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -886,9 +872,9 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     borderRadius: 16,
     paddingHorizontal: 16,
-    minHeight: 52,
+    minHeight: 50,
     gap: 10,
-    marginBottom: 10,
+    marginBottom: 6,
   },
   searchInput: {
     flex: 1,
@@ -898,19 +884,59 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     minHeight: 44,
   },
-  productPicker: { maxHeight: 200 },
+  productPickerScroll: {
+    maxHeight: 230,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
+    backgroundColor: '#FAFAFA',
+  },
+  productPickerScrollContent: {
+    paddingHorizontal: 12,
+  },
   productOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 11,
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
-  productName: { fontWeight: '800', fontSize: 14, color: '#0F172A' },
-  productUnit: { fontSize: 12, color: '#64748B', marginTop: 2 },
-  repickRow: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' },
-  repickText: { color: Colors.primary.deepBlue, fontWeight: '800', fontSize: 13 },
-  marketOptions: { gap: 8 },
+  productName: {
+    fontWeight: '800',
+    fontSize: 14,
+    color: '#0F172A',
+  },
+  productUnit: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  repickRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  repickText: {
+    color: Colors.primary.deepBlue,
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  marketOptionsScroll: {
+    maxHeight: 230,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 14,
+    backgroundColor: '#FAFAFA',
+  },
+  marketOptionsScrollContent: {
+    padding: 10,
+    gap: 8,
+  },
   marketCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -918,16 +944,50 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#FFF',
   },
-  marketCardActive: { borderColor: Colors.primary.deepBlue, backgroundColor: '#EFF6FF' },
-  marketName: { fontWeight: '800', fontSize: 14, color: '#1E293B' },
-  marketNameActive: { color: Colors.primary.deepBlue },
-  marketArea: { fontSize: 12, color: '#64748B', marginTop: 2 },
-  marketPrice: { fontSize: 15, fontWeight: '900', color: '#0F172A' },
-  marketPriceActive: { color: Colors.primary.deepBlue },
-  noMarkets: { color: '#64748B', fontSize: 13, marginVertical: 8 },
-  conditionRow: { flexDirection: 'row', gap: 10 },
+  marketCardActive: {
+    borderColor: Colors.primary.deepBlue,
+    backgroundColor: '#EFF6FF',
+  },
+  marketName: {
+    fontWeight: '800',
+    fontSize: 14,
+    color: '#1E293B',
+  },
+  marketNameActive: {
+    color: Colors.primary.deepBlue,
+  },
+  marketArea: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  priceContainer: {
+    alignItems: 'flex-end',
+  },
+  marketPrice: {
+    fontSize: 15,
+    fontWeight: '900',
+    color: '#0F172A',
+  },
+  marketPriceActive: {
+    color: Colors.primary.deepBlue,
+  },
+  marketPriceSub: {
+    fontSize: 10,
+    color: '#94A3B8',
+    fontWeight: '600',
+  },
+  noMarkets: {
+    color: '#64748B',
+    fontSize: 13,
+    marginVertical: 8,
+  },
+  conditionRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
   conditionBtn: {
     flex: 1,
     flexDirection: 'row',
@@ -940,17 +1000,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  conditionBtnActive: { backgroundColor: Colors.primary.deepBlue, borderColor: Colors.primary.deepBlue },
-  conditionText: { fontWeight: '800', fontSize: 12, color: '#475569' },
-  conditionTextActive: { color: '#FFF' },
+  conditionBtnActive: {
+    backgroundColor: Colors.primary.deepBlue,
+    borderColor: Colors.primary.deepBlue,
+  },
+  conditionText: {
+    fontWeight: '800',
+    fontSize: 12,
+    color: '#475569',
+  },
+  conditionTextActive: {
+    color: '#FFF',
+  },
   priceInput: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: '#CBD5E1',
     borderRadius: 14,
     padding: 14,
     fontSize: 18,
     fontWeight: '800',
     color: '#0F172A',
+    backgroundColor: '#FFF',
   },
   saveBtn: {
     marginTop: 14,
@@ -959,6 +1029,12 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
   },
-  saveBtnDisabled: { backgroundColor: '#CBD5E1' },
-  saveBtnText: { color: '#FFF', fontWeight: '900', fontSize: 15 },
+  saveBtnDisabled: {
+    backgroundColor: '#CBD5E1',
+  },
+  saveBtnText: {
+    color: '#FFF',
+    fontWeight: '900',
+    fontSize: 15,
+  },
 });

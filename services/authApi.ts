@@ -84,6 +84,15 @@ export async function updateProfileRequest(payload: { name: string; email: strin
   return data.data.user;
 }
 
+export async function changePasswordRequest(payload: {
+  current_password: string;
+  password: string;
+  password_confirmation: string;
+}) {
+  const { data } = await api.post<ApiSuccess<null>>('/auth/change-password', payload);
+  return data;
+}
+
 export function mapAuthUserToAppUser(u: AuthUser): User {
   return {
     id: String(u.id),

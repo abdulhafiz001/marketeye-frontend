@@ -9,7 +9,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -132,7 +131,7 @@ export default function CommodityDetailScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
           <MaterialCommunityIcons name="arrow-left" size={22} color={Colors.primary.deepBlue} />
@@ -340,7 +339,7 @@ export default function CommodityDetailScreen() {
           </TouchableOpacity>
         </ScrollView>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 

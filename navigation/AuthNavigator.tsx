@@ -9,6 +9,7 @@ import LoginScreen from '../screens/auth/LoginScreen';
 import SignUpScreen from '../screens/auth/SignUpScreen';
 import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
 import VerifyEmailScreen from '../screens/auth/VerifyEmailScreen';
+import { fullScreenStackLayout } from './screenSafeArea';
 
 const Stack = createStackNavigator();
 
@@ -19,6 +20,7 @@ export default function AuthNavigator() {
         headerShown: false,
         cardStyle: { backgroundColor: '#FFFFFF' },
       }}
+      screenLayout={fullScreenStackLayout}
     >
       <Stack.Screen name="SignUp" component={SignUpScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />

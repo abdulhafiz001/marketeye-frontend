@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
@@ -37,7 +36,7 @@ export default function MarketScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>Abuja markets</Text>
@@ -117,7 +116,7 @@ export default function MarketScreen() {
           }
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 

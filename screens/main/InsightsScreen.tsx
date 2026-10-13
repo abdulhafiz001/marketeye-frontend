@@ -7,7 +7,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { Colors, Spacing, Typography } from '@/constants/colors';
@@ -29,7 +28,7 @@ export default function InsightsScreen() {
   const maxHeat = Math.max(1, ...heatmap.map((d) => d.count));
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Insights</Text>
         <Text style={styles.sub}>Crowd-verified market movement across Abuja</Text>
@@ -134,7 +133,7 @@ export default function InsightsScreen() {
           </View>
         </ScrollView>
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -8,7 +8,6 @@ import {
   FlatList,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { getCurrentUserLocation, calculateHaversineDistanceKm } from '@/services/locationService';
@@ -57,7 +56,7 @@ export default function CompareScreen() {
   }, [markets]);
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>Compare prices</Text>
         <Text style={styles.sub}>Find the cheapest market for a product.</Text>
@@ -156,7 +155,7 @@ export default function CompareScreen() {
           }}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 

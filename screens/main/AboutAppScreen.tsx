@@ -1,6 +1,5 @@
 import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import Constants from 'expo-constants';
@@ -14,7 +13,7 @@ export default function AboutAppScreen() {
     '1.0.0';
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <View style={styles.container}>
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <MaterialCommunityIcons name="arrow-left" size={22} color={Colors.primary.deepBlue} />
@@ -38,7 +37,7 @@ export default function AboutAppScreen() {
           guesswork at the stall.
         </Text>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 

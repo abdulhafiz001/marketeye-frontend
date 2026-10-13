@@ -13,7 +13,6 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Spacing, Typography } from '@/constants/colors';
@@ -26,13 +25,15 @@ export default function SignUpScreen() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSignUp = async () => {
     setError(null);
-    const localError = validateSignupInput({ name, email, password, phone });
+    const localError = validateSignupInput({ name, email, password, passwordConfirmation: confirmPassword, phone });
     if (localError) {
       setError(localError);
       return;
@@ -59,7 +60,7 @@ export default function SignUpScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardView}
@@ -162,13 +163,41 @@ export default function SignUpScreen() {
               </TouchableOpacity>
             </View>
 
+            <View style={styles.inputContainer}>
+              <MaterialCommunityIcons
+                name="lock-check-outline"
+                size={20}
+                color={Colors.text.secondary}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Confirm password"
+                placeholderTextColor={Colors.text.secondary}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry={!showConfirmPassword}
+              />
+              <TouchableOpacity
+                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                style={styles.eyeIcon}
+              >
+                <MaterialCommunityIcons
+                  name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={20}
+                  color={Colors.text.secondary}
+                />
+              </TouchableOpacity>
+            </View>
+
             <TouchableOpacity
               style={[
                 styles.signUpButton,
-                (!name?.trim() || !email?.trim() || !password || loading) && styles.signUpButtonDisabled,
+                (!name?.trim() || !email?.trim() || !password || !confirmPassword || loading) &&
+                  styles.signUpButtonDisabled,
               ]}
               onPress={handleSignUp}
-              disabled={!name?.trim() || !email?.trim() || !password || loading}
+              disabled={!name?.trim() || !email?.trim() || !password || !confirmPassword || loading}
               activeOpacity={0.85}
             >
               <Text style={styles.signUpButtonText}>
@@ -185,7 +214,7 @@ export default function SignUpScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 

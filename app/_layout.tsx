@@ -13,7 +13,7 @@ import QueryProvider from '@/providers/QueryProvider';
 import { bootstrapSession } from '@/services/sessionBootstrap';
 import { AlertThresholdEvaluator } from '@/components/AlertThresholdEvaluator';
 import { OfflineQueueSync } from '@/components/OfflineQueueSync';
-import { getCurrentUserLocation, requestLocationPermission } from '@/services/locationService';
+import { PostLoginPermissionsCoordinator } from '@/components/PostLoginPermissionsCoordinator';
 
 export default function RootLayout() {
   const navigationRef = useRef<any>(null);
@@ -31,18 +31,6 @@ export default function RootLayout() {
     return () => {
       cancelled = true;
     };
-  }, []);
-
-  // Request location permission and warmup GPS on initial app launch
-  useEffect(() => {
-    void (async () => {
-      try {
-        await requestLocationPermission();
-        await getCurrentUserLocation();
-      } catch {
-        // Location is optional
-      }
-    })();
   }, []);
 
   // Deep-link to Notification screen when a push notification is tapped
@@ -99,6 +87,7 @@ export default function RootLayout() {
           <NavigationContainer ref={navigationRef}>
             <AlertThresholdEvaluator />
             <OfflineQueueSync />
+            <PostLoginPermissionsCoordinator />
             <AppNavigator navigationRef={navigationRef} />
             <StatusBar style="auto" />
           </NavigationContainer>

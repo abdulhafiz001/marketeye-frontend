@@ -10,7 +10,6 @@ import {
   Modal,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -149,7 +148,6 @@ export default function ProfileScreen() {
   const navigation = useNavigation();
   const queryClient = useQueryClient();
   const user = useStore((state) => state.user);
-  const marketWatchlist = useStore((state) => state.marketWatchlist);
   const logoutUser = useStore((state) => state.logoutUser);
 
   const submissionsQ = useQuery({
@@ -253,7 +251,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.container}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -313,39 +311,6 @@ export default function ProfileScreen() {
             </View>
           </View>
         ) : null}
-
-        <View style={{ paddingHorizontal: Spacing.lg, marginBottom: Spacing.md }}>
-          <Text style={styles.sectionTitle}>Watched products</Text>
-          <View style={styles.submissionsBox}>
-            {marketWatchlist.slice(0, 6).map((watch) => (
-              <TouchableOpacity
-                key={watch.id}
-                style={styles.submissionRow}
-                onPress={() =>
-                  (navigation as any).navigate('CommodityDetail', {
-                    productId: watch.productId,
-                    marketId: watch.marketId,
-                    marketName: watch.marketName,
-                  })
-                }
-              >
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.submissionTitle}>{watch.productName}</Text>
-                  <Text style={styles.submissionMeta}>{watch.marketName} • {watch.unit}</Text>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={styles.watchPrice}>
-                    {watch.lastPrice ? `₦${watch.lastPrice.toLocaleString()}` : 'No price yet'}
-                  </Text>
-                  <MaterialCommunityIcons name="chevron-right" size={20} color="#9CA3AF" />
-                </View>
-              </TouchableOpacity>
-            ))}
-            {!marketWatchlist.length ? (
-              <Text style={{ color: '#6B7280' }}>No watched products yet.</Text>
-            ) : null}
-          </View>
-        </View>
 
         {/* --- Menu Sections --- */}
         <View style={styles.sectionsContainer}>
@@ -411,7 +376,7 @@ export default function ProfileScreen() {
           <Text style={styles.versionText}> Market Eye v1.0.0</Text>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
