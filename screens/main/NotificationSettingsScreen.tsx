@@ -336,7 +336,12 @@ export default function NotificationSettingsScreen() {
               </View>
 
               {!selectedProductId ? (
-                <View style={styles.pickList}>
+                <ScrollView
+                  style={styles.pickList}
+                  nestedScrollEnabled
+                  showsVerticalScrollIndicator
+                  keyboardShouldPersistTaps="handled"
+                >
                   {filteredProducts.map((item) => (
                     <TouchableOpacity
                       key={item.id}
@@ -350,7 +355,7 @@ export default function NotificationSettingsScreen() {
                       <Text style={styles.pickMeta}>{item.unit}</Text>
                     </TouchableOpacity>
                   ))}
-                </View>
+                </ScrollView>
               ) : null}
 
               {selectedProductId ? (
@@ -378,7 +383,12 @@ export default function NotificationSettingsScreen() {
                       ) : productDetailQ.isError || !productDetailQ.data?.markets?.length ? (
                         <Text style={styles.soft}>No prices linked yet — try another product.</Text>
                       ) : (
-                        <View style={styles.pickListCompact}>
+                        <ScrollView
+                          style={styles.pickListCompact}
+                          nestedScrollEnabled
+                          showsVerticalScrollIndicator
+                          keyboardShouldPersistTaps="handled"
+                        >
                           {productDetailQ.data.markets.map((item) => (
                             <TouchableOpacity
                               key={item.market.id}
@@ -392,7 +402,7 @@ export default function NotificationSettingsScreen() {
                               <Text style={styles.priceTag}>₦{item.avg_price.toLocaleString()}</Text>
                             </TouchableOpacity>
                           ))}
-                        </View>
+                        </ScrollView>
                       )}
                     </>
                   )}

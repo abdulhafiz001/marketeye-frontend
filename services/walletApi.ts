@@ -5,6 +5,12 @@ export type WalletPayload = {
   wallet: {
     balance: number;
     min_claim: number;
+    claim_amount?: number;
+    monthly_limit?: number;
+    monthly_claimed?: number;
+    monthly_remaining?: number;
+    has_reached_monthly_limit?: boolean;
+    has_pending?: boolean;
     can_claim: boolean;
     progress: number;
     remaining_to_claim: number;

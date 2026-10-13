@@ -60,12 +60,12 @@ export default function RootLayout() {
           if (navigationRef.current) {
             try {
               navigationRef.current.navigate('Main', {
-                screen: 'PriceWatch',
-                params: { initialTab: 'inbox', alertId: data?.alertId || data?.alert_id },
+                screen: 'Notifications',
+                params: { alertId: data?.alertId || data?.alert_id },
               });
             } catch {
               try {
-                navigationRef.current.navigate('PriceWatch', { initialTab: 'inbox' });
+                navigationRef.current.navigate('Notifications');
               } catch {}
             }
           }
@@ -76,8 +76,7 @@ export default function RootLayout() {
           setTimeout(() => {
             try {
               navigationRef.current?.navigate('Main', {
-                screen: 'PriceWatch',
-                params: { initialTab: 'inbox' },
+                screen: 'Notifications',
               });
             } catch {}
           }, 800);

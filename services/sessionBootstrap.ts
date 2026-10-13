@@ -10,12 +10,22 @@ import { hydratePreferences, setStoreState } from '@/store/useStore';
 export const REMEMBER_LOGIN_KEY = 'market-eye.remember-login.v1';
 const INSTALL_STAMP_KEY = 'marketeye.install_stamp.v1';
 
-function currentInstallStamp(): string {
-  if (Platform.OS === 'android' && Application.firstInstallTime) {
-    return `android:${Application.firstInstallTime}`;
-  }
-  if (Platform.OS === 'ios' && Application.iosIdForVendor) {
-    return `ios:${Application.iosIdForVendor}`;
+async function currentInstallStamp(): Promise<string> {
+  try {
+    if (Platform.OS === 'android') {
+      const installTime = await Application.getInstallationTimeAsync();
+      if (installTime) {
+        return `android:${installTime.getTime()}`;
+      }
+    }
+    if (Platform.OS === 'ios') {
+      const idfv = await Application.getIosIdForVendorAsync();
+      if (idfv) {
+        return `ios:${idfv}`;
+      }
+    }
+  } catch {
+    // Fall back to default local platform string
   }
   return `local:${Platform.OS}`;
 }
@@ -26,7 +36,7 @@ function currentInstallStamp(): string {
  * and wipe the session when it is a new install.
  */
 export async function resetSessionIfNewInstall(): Promise<void> {
-  const stamp = currentInstallStamp();
+  const stamp = await currentInstallStamp();
   const stored = await AsyncStorage.getItem(INSTALL_STAMP_KEY);
 
   if (stored === stamp) {

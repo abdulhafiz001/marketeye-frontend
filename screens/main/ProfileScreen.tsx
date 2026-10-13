@@ -69,29 +69,37 @@ function WalletCard() {
   const w = walletQ.data?.wallet;
   const balance = w?.balance ?? user?.walletBalance ?? 0;
   const progress = w?.progress ?? Math.min(100, Math.round((balance / 200) * 100));
-  const canClaim = w?.can_claim ?? balance >= 200;
+  const hasReachedLimit = w?.has_reached_monthly_limit ?? false;
+  const hasPending = w?.has_pending ?? false;
+  const canClaim = (w?.can_claim ?? (balance >= 200 && !hasReachedLimit && !hasPending)) && !hasReachedLimit && !hasPending;
+
+  const progressLabel = hasReachedLimit
+    ? 'Monthly limit reached (₦200/month). Resets next month.'
+    : hasPending
+    ? 'Pending claim awaiting admin processing.'
+    : canClaim
+    ? 'Ready to claim ₦200 airtime'
+    : `₦${Math.max(0, 200 - balance)} more to unlock claim`;
 
   return (
     <View style={styles.walletCard}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <View style={{ flex: 1 }}>
           <Text style={styles.pointsLabel}>Airtime wallet</Text>
-          <Text style={styles.pointsHint}>₦1 per verified submission · claim from ₦200</Text>
+          <Text style={styles.pointsHint}>₦1 per verified report · ₦200 monthly limit</Text>
         </View>
         <Text style={styles.walletValue}>₦{(balance || 0).toLocaleString()}</Text>
       </View>
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { width: `${progress}%` as any }]} />
       </View>
-      <Text style={styles.progressLabel}>
-        {canClaim ? 'Ready to claim' : `₦${Math.max(0, 200 - balance)} more to unlock claim`}
-      </Text>
+      <Text style={styles.progressLabel}>{progressLabel}</Text>
       <TouchableOpacity
         style={[styles.claimBtn, !canClaim && styles.claimBtnDisabled]}
         disabled={!canClaim}
         onPress={() => setClaimOpen(true)}
       >
-        <Text style={styles.claimBtnText}>Claim airtime</Text>
+        <Text style={styles.claimBtnText}>Claim ₦200 Airtime</Text>
       </TouchableOpacity>
 
       {(walletQ.data?.claims || []).slice(0, 3).map((c) => (
@@ -104,7 +112,10 @@ function WalletCard() {
       <Modal visible={claimOpen} transparent animationType="fade" onRequestClose={() => setClaimOpen(false)}>
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Confirm phone for airtime</Text>
+            <Text style={styles.modalTitle}>Claim ₦200 Airtime</Text>
+            <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 12, lineHeight: 18 }}>
+              Enter your mobile number to receive your ₦200 airtime recharge card. Limit is ₦200 per user each month.
+            </Text>
             <TextInput
               style={styles.modalInput}
               value={phone}
@@ -121,7 +132,7 @@ function WalletCard() {
               {claimM.isPending ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.claimBtnText}>Submit claim</Text>
+                <Text style={styles.claimBtnText}>Submit ₦200 Claim</Text>
               )}
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setClaimOpen(false)}>

@@ -119,7 +119,7 @@ export default function DashboardScreen() {
 
             <TouchableOpacity
               style={styles.notificationButton}
-              onPress={() => navigation.navigate('PriceWatch')}
+              onPress={() => navigation.navigate('Notifications')}
             >
               <MaterialCommunityIcons name="bell-outline" size={22} color={Colors.primary.deepBlue} />
               {unreadBellCount > 0 ? (
@@ -388,7 +388,7 @@ export default function DashboardScreen() {
               </View>
               <View style={styles.rewardFooter}>
                 <Text style={styles.rewardHint}>
-                  {userBalance >= 200 ? '₦200 Minimum claim reached!' : `₦${Math.max(0, 200 - userBalance)} more to claim airtime`}
+                  {userBalance >= 200 ? '₦200 Monthly airtime ready to claim!' : `₦${Math.max(0, 200 - userBalance)} more to claim ₦200 airtime`}
                 </Text>
                 <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
                   <Text style={styles.claimLink}>View Wallet →</Text>
