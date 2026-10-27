@@ -65,6 +65,21 @@ export async function submitPriceBatch(
   return data.data;
 }
 
+export async function suggestCatalogProduct(payload: {
+  product_name: string;
+  unit: string;
+  category_id?: number;
+  category_name?: string;
+  reason?: string;
+  market_prices: Array<{ market_id: number; price: number; latitude: number; longitude: number }>;
+}) {
+  const { data } = await api.post<ApiSuccess<{ suggestion: { id: number; status: string } }>>(
+    '/catalog/suggestions',
+    payload
+  );
+  return data.data;
+}
+
 export async function fetchMySubmissions() {
   const { data } = await api.get<ApiSuccess<{ submissions: any[] }>>('/user/submissions');
   return data.data.submissions;

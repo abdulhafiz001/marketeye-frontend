@@ -18,8 +18,8 @@ import NetInfo from '@react-native-community/netinfo';
 import { getCurrentUserLocation, calculateHaversineDistanceKm } from '@/services/locationService';
 
 import { fetchMarkets } from '@/services/marketsApi';
-import { fetchProducts } from '@/services/catalogApi';
-import { submitPrice } from '@/services/userApi';
+import { fetchCategories, fetchProducts } from '@/services/catalogApi';
+import { submitPriceBatch, suggestCatalogProduct } from '@/services/userApi';
 import {
   enqueueOfflineSubmission,
   flushOfflineQueue,
@@ -37,13 +37,12 @@ export default function SubmitPriceScreen() {
   const setUser = useStore((s) => s.setUser);
   const user = useStore((s) => s.user);
 
-  const [marketId, setMarketId] = useState<number | null>(
-    route.params?.marketId != null ? Number(route.params.marketId) : null
+  const [marketIds, setMarketIds] = useState<number[]>(
+    route.params?.marketId != null ? [Number(route.params.marketId)] : []
   );
   const [productId, setProductId] = useState<number | null>(
     route.params?.productId != null ? Number(route.params.productId) : null
   );
-  const [price, setPrice] = useState('');
   const [quantityValue, setQuantityValue] = useState('1');
   const [quantityUnit, setQuantityUnit] = useState('');
   const [customUnit, setCustomUnit] = useState('');
@@ -54,6 +53,16 @@ export default function SubmitPriceScreen() {
   const [submissionResult, setSubmissionResult] = useState<any>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
+  const [marketPrices, setMarketPrices] = useState<Record<number, string>>({});
+  const [attemptedMarket, setAttemptedMarket] = useState<string | null>(null);
+  const [suggestingProduct, setSuggestingProduct] = useState(false);
+  const [suggestionSent, setSuggestionSent] = useState(false);
+  const [newProductName, setNewProductName] = useState('');
+  const [newProductUnit, setNewProductUnit] = useState('');
+  const [categoryId, setCategoryId] = useState<number | null>(null);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newItemReason, setNewItemReason] = useState('');
+  const [formError, setFormError] = useState<string | null>(null);
 
   const scale = React.useRef(new Animated.Value(0)).current;
 
@@ -67,7 +76,7 @@ export default function SubmitPriceScreen() {
   useEffect(() => {
     (async () => {
       try {
-        const coords = await getCurrentUserLocation();
+      const coords = await getCurrentUserLocation(true);
         if (coords) {
           setUserLoc({ lat: coords.latitude, lng: coords.longitude });
         }
@@ -82,12 +91,13 @@ export default function SubmitPriceScreen() {
       setProductId(Number(route.params.productId));
     }
     if (route.params?.marketId != null) {
-      setMarketId(Number(route.params.marketId));
+      setMarketIds([Number(route.params.marketId)]);
     }
   }, [route.params?.productId, route.params?.marketId]);
 
   const marketsQ = useQuery({ queryKey: ['markets'], queryFn: fetchMarkets });
   const productsQ = useQuery({ queryKey: ['products'], queryFn: fetchProducts });
+  const categoriesQ = useQuery({ queryKey: ['categories'], queryFn: fetchCategories });
 
   const filteredProducts = useMemo(() => {
     const list = productsQ.data || [];
@@ -97,15 +107,14 @@ export default function SubmitPriceScreen() {
   }, [productsQ.data, q]);
   const visibleProducts = useMemo(() => filteredProducts.slice(0, q.trim() ? 20 : 8), [filteredProducts, q]);
 
-  const selectedMarket = (marketsQ.data?.markets || []).find((m) => m.id === marketId);
+  const selectedMarkets = (marketsQ.data?.markets || []).filter((m) => marketIds.includes(m.id));
   const selectedProduct = (productsQ.data || []).find((p) => p.id === productId);
 
   // Compute geofence proximity (within 750m)
-  const isGeoverified = useMemo(() => {
-    if (!userLoc || !selectedMarket?.lat || !selectedMarket?.lng) return false;
-    const dist = calculateHaversineDistanceKm(userLoc.lat, userLoc.lng, selectedMarket.lat, selectedMarket.lng);
-    return dist <= 0.75;
-  }, [userLoc, selectedMarket]);
+  const distanceToMarket = (market: { lat: number | null; lng: number | null }) => {
+    if (!userLoc || market.lat == null || market.lng == null) return null;
+    return calculateHaversineDistanceKm(userLoc.lat, userLoc.lng, market.lat, market.lng);
+  };
 
   const unitOptions = useMemo(() => {
     const base = selectedProduct?.unit ? [selectedProduct.unit] : [];
@@ -119,59 +128,95 @@ export default function SubmitPriceScreen() {
   }, [quantityUnit, selectedProduct?.unit]);
 
   const mutation = useMutation({
+    onMutate: () => setFormError(null),
     mutationFn: async () => {
-      if (!marketId || !productId) throw new Error('Pick market and product');
-      const p = Number(price.replace(/,/g, ''));
-      if (!Number.isFinite(p) || p <= 0) throw new Error('Enter a valid price');
+      if (!marketIds.length) throw new Error('Select at least one market near you.');
+      const coords = await getCurrentUserLocation(true);
+      if (!coords) throw new Error('Turn on location and allow access to submit prices at a market.');
+      setUserLoc({ lat: coords.latitude, lng: coords.longitude });
+      const markets = (marketsQ.data?.markets || []).filter((market) => marketIds.includes(market.id));
+      for (const market of markets) {
+        const distance = market.lat == null || market.lng == null
+          ? null
+          : calculateHaversineDistanceKm(coords.latitude, coords.longitude, market.lat, market.lng);
+        if (distance === null || distance > 0.75) {
+          throw new Error(distance === null
+            ? `${market.name} does not have a verified map location.`
+            : `You are ${distance.toFixed(1)} km from ${market.name}. You must be within 750 m to submit a price for this market.`);
+        }
+      }
+      const priceFor = (id: number) => Number((marketPrices[id] ?? '').replace(/,/g, ''));
+      for (const market of markets) {
+        if (!Number.isFinite(priceFor(market.id)) || priceFor(market.id) <= 0) {
+          throw new Error(`Enter a valid price for ${market.name}.`);
+        }
+      }
+      if (suggestingProduct) {
+        if (newProductName.trim().length < 3) throw new Error('Enter a real product name with at least 3 characters.');
+        if (newProductUnit.trim().length < 2) throw new Error('Enter a valid unit, such as per kg or per basket.');
+        if (!categoryId && newCategoryName.trim().length < 3) throw new Error('Select a category or enter a new category name.');
+        const response = await suggestCatalogProduct({
+          product_name: newProductName.trim(),
+          unit: newProductUnit.trim(),
+          category_id: categoryId ?? undefined,
+          category_name: categoryId ? undefined : newCategoryName.trim(),
+          reason: newItemReason.trim() || undefined,
+          market_prices: markets.map((market) => ({
+            market_id: market.id,
+            price: priceFor(market.id),
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+          })),
+        });
+        return { offline: false as const, suggestion: response.suggestion };
+      }
+
+      if (!productId) throw new Error('Select a product or suggest a new one.');
       const qty = Number(quantityValue.replace(/,/g, ''));
       if (!Number.isFinite(qty) || qty <= 0) throw new Error('Enter a valid quantity');
       const unit = quantityUnit === 'custom' ? customUnit.trim() : quantityUnit;
       if (!unit) throw new Error('Choose the quantity unit');
-
-      const payload = {
-        market_id: marketId,
+      const payload = markets.map((market) => ({
         product_id: productId,
-        price: p,
+        market_id: market.id,
+        price: priceFor(market.id),
         quantity_value: qty,
         quantity_unit: unit,
         notes: notes.trim() || undefined,
-        is_geoverified: isGeoverified,
-        latitude: userLoc?.lat,
-        longitude: userLoc?.lng,
-      };
-
+        latitude: coords.latitude,
+        longitude: coords.longitude,
+      }));
       const net = await NetInfo.fetch();
       if (!net.isConnected) {
-        await enqueueOfflineSubmission({
-          ...payload,
-          product_name: selectedProduct?.name,
-          market_name: selectedMarket?.name,
-        });
+        for (const report of payload) {
+          const market = markets.find((item) => item.id === report.market_id);
+          await enqueueOfflineSubmission({ ...report, product_name: selectedProduct?.name, market_name: market?.name });
+        }
         return { offline: true as const };
       }
-
-      try {
-        const data = await submitPrice(payload);
-        return { offline: false as const, data };
-      } catch (err: any) {
-        const status = err?.response?.status;
-        const noNetwork = !err?.response || status === 0;
-        if (noNetwork) {
-          await enqueueOfflineSubmission({
-            ...payload,
-            product_name: selectedProduct?.name,
-            market_name: selectedMarket?.name,
-          });
-          return { offline: true as const };
-        }
-        throw err;
-      }
+      const data = await submitPriceBatch(payload);
+      return { offline: false as const, data };
     },
     onSuccess: (result) => {
-      setSuccess(true);
       setQueuedOffline(result.offline);
+      if ('suggestion' in result && result.suggestion) {
+        setSuggestionSent(true);
+        setSuccess(true);
+      }
       if (!result.offline && result.data) {
-        setSubmissionResult(result.data.submission);
+        const successful = result.data.results.filter((row) => row.ok).length;
+        if (successful === 0) {
+          setFormError(result.data.results.find((row) => !row.ok)?.message || 'No prices were accepted. Check the market location and try again.');
+          mutation.reset();
+          return;
+        }
+        setSubmissionResult({
+          accepted: successful,
+          total: result.data.accepted + result.data.failed,
+          failed: result.data.failed,
+          failureMessage: result.data.results.find((row) => !row.ok)?.message,
+        });
+        setSuccess(true);
         if (user) {
           setUser({
             ...user,
@@ -180,6 +225,7 @@ export default function SubmitPriceScreen() {
           });
         }
       }
+      if (result.offline) setSuccess(true);
 
       // Invalidate queries so prices immediately appear across market detail, product detail, and dashboard
       queryClient.invalidateQueries({ queryKey: ['market-prices'] });
@@ -231,19 +277,19 @@ export default function SubmitPriceScreen() {
           </Animated.View>
           <Text style={styles.blockTitle}>{queuedOffline ? 'Saved Offline' : 'Price Submitted!'}</Text>
 
-          {submissionResult?.is_geoverified ? (
+          {!suggestionSent ? submissionResult ? (
             <View style={styles.successGeoBadge}>
               <MaterialCommunityIcons name="map-marker-check" size={16} color="#166534" />
-              <Text style={styles.successGeoText}>📍 GPS Verified On-Site (+10 Points Awarded)</Text>
+              <Text style={styles.successGeoText}>GPS checked for {submissionResult.accepted} market price(s)</Text>
             </View>
-          ) : null}
+          ) : null : null}
 
           <Text style={styles.blockSub}>
             {queuedOffline
               ? 'No signal right now — this price is safely queued locally and will upload automatically when you reconnect.'
-              : submissionResult?.auto_approved
-              ? 'Your high trust reputation auto-verified this report! ₦1 added to your airtime wallet.'
-              : 'Your price report has been recorded for community verification. Thanks for keeping Abuja markets transparent!'}
+              : suggestionSent
+                ? 'Your product, category, and market prices were sent to the team for review. They will appear in the catalog after approval.'
+                : `${submissionResult?.accepted ?? 1} price report(s) were recorded for community verification.${submissionResult?.failed ? ` ${submissionResult.failed} report(s) were not accepted: ${submissionResult.failureMessage || 'check the selected market location.'}` : ''} Thanks for keeping market prices accurate!`}
           </Text>
           <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.goBack()}>
             <Text style={styles.primaryBtnText}>Done</Text>
@@ -253,13 +299,13 @@ export default function SubmitPriceScreen() {
     );
   }
 
-  const errorMessage = mutation.isError
-    ? (mutation.error as any)?.response?.data?.message ||
-      ((mutation.error as any)?.response?.data?.errors &&
+  const errorMessage = formError || (mutation.isError
+    ? ((mutation.error as any)?.response?.data?.errors &&
         Object.values((mutation.error as any).response.data.errors).flat().join(' ')) ||
+      (mutation.error as any)?.response?.data?.message ||
       (mutation.error as any)?.message ||
       'Could not submit this price. Please check the details and try again.'
-    : null;
+    : null);
 
   return (
     <View style={styles.container}>
@@ -273,8 +319,8 @@ export default function SubmitPriceScreen() {
             <MaterialCommunityIcons name="close" size={22} color={Colors.primary.deepBlue} />
           </TouchableOpacity>
           <Text style={styles.title}>Submit Market Price</Text>
-          {marketId != null ? (
-            <TouchableOpacity onPress={() => setMarketId(null)} style={styles.clearChip}>
+          {marketIds.length > 0 ? (
+            <TouchableOpacity onPress={() => setMarketIds([])} style={styles.clearChip}>
               <Text style={styles.clearChipText}>Change</Text>
             </TouchableOpacity>
           ) : null}
@@ -306,15 +352,37 @@ export default function SubmitPriceScreen() {
               style={styles.marketScroller}
             >
               {(marketsQ.data?.markets || []).map((item) => {
-                const active = item.id === marketId;
+                const active = marketIds.includes(item.id);
+                const distance = distanceToMarket(item);
+                const nearby = distance != null && distance <= 0.75;
                 return (
                   <TouchableOpacity
                     key={item.id}
-                    style={[styles.chip, active && styles.chipActive]}
-                    onPress={() => setMarketId(item.id)}
+                    style={[styles.chip, !nearby && styles.chipDistant, active && styles.chipActive]}
+                    onPress={() => {
+                      if (active) {
+                        setMarketIds((current) => current.filter((id) => id !== item.id));
+                        setAttemptedMarket(null);
+                        return;
+                      }
+                      if (!userLoc) {
+                        setAttemptedMarket('Allow location access so we can check whether you are at this market.');
+                        return;
+                      }
+                      if (!nearby) {
+                        setAttemptedMarket(distance == null
+                          ? `${item.name} has no verified map location and cannot be selected.`
+                          : `You are ${distance.toFixed(1)} km from ${item.name}. You must be within 750 m to report prices there.`);
+                        return;
+                      }
+                      setAttemptedMarket(null);
+                      setMarketIds((current) => current.includes(item.id)
+                        ? current.filter((id) => id !== item.id)
+                        : [...current, item.id]);
+                    }}
                   >
                     <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                      {item.name.replace(' Market', '')}
+                      {item.name.replace(' Market', '')} {distance == null ? '· location off' : `· ${distance < 1 ? `${Math.round(distance * 1000)} m` : `${distance.toFixed(1)} km`}`}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -322,19 +390,14 @@ export default function SubmitPriceScreen() {
             </ScrollView>
           )}
 
-          {selectedMarket ? (
+          {selectedMarkets.length ? (
             <View style={styles.marketStatusWrap}>
-              <Text style={styles.selected}>Selected: {selectedMarket.name}</Text>
-              {isGeoverified ? (
-                <View style={styles.geoVerifiedPill}>
-                  <MaterialCommunityIcons name="map-marker-check" size={14} color="#166534" />
-                  <Text style={styles.geoVerifiedPillText}>📍 Verified In-Market (+10 Pts)</Text>
-                </View>
-              ) : null}
+              <Text style={styles.selected}>Selected: {selectedMarkets.map((market) => market.name).join(', ')}</Text>
             </View>
           ) : (
-            <Text style={styles.hint}>Pick the Abuja market you are reporting from</Text>
+            <Text style={styles.hint}>Select one or more markets within 750 m of your current location.</Text>
           )}
+          {attemptedMarket ? <Text style={styles.errorText}>{attemptedMarket}</Text> : null}
 
           {/* Product Selection */}
           <Text style={[styles.label, { marginTop: Spacing.md }]}>2. Select Commodity</Text>
@@ -384,22 +447,49 @@ export default function SubmitPriceScreen() {
                   <Text style={{ color: '#6B7280' }}>No matching products found.</Text>
                 )}
               </ScrollView>
-              <Text style={styles.hint}>Select the product</Text>
+              <Text style={styles.hint}>Select a product or suggest a new one. New items are reviewed before publishing.</Text>
+              <TouchableOpacity style={styles.secondaryBtn} onPress={() => setSuggestingProduct((current) => !current)}>
+                <Text style={styles.secondaryBtnText}>{suggestingProduct ? 'Choose an existing product' : 'Can’t find it? Suggest a product'}</Text>
+              </TouchableOpacity>
             </>
           )}
 
+          {suggestingProduct ? (
+            <View style={styles.suggestionBox}>
+              <Text style={styles.labelNoPad}>New product details</Text>
+              <TextInput value={newProductName} onChangeText={setNewProductName} placeholder="Product name (e.g. Ugu leaves)" style={styles.input} />
+              <TextInput value={newProductUnit} onChangeText={setNewProductUnit} placeholder="How it is sold (e.g. per bundle)" style={styles.input} />
+              <Text style={styles.labelNoPad}>Choose an existing category</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.marketChips}>
+                {(categoriesQ.data || []).map((category) => (
+                  <TouchableOpacity key={category.id} style={[styles.chip, categoryId === category.id && styles.chipActive]} onPress={() => { setCategoryId(category.id); setNewCategoryName(''); }}>
+                    <Text style={[styles.chipText, categoryId === category.id && styles.chipTextActive]}>{category.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <TextInput value={newCategoryName} onChangeText={(value) => { setNewCategoryName(value); setCategoryId(null); }} placeholder="Or suggest a new category" style={styles.input} />
+              <TextInput value={newItemReason} onChangeText={setNewItemReason} placeholder="Add a short note (optional)" style={styles.input} />
+            </View>
+          ) : null}
+
           {/* Price & Quantity Fields */}
           <View style={{ paddingHorizontal: Spacing.lg, marginTop: Spacing.sm }}>
-            <Text style={styles.labelNoPad}>3. Total Price (₦)</Text>
-            <TextInput
-              value={price}
-              onChangeText={setPrice}
-              keyboardType="numeric"
-              placeholder="e.g. 3500"
-              style={styles.input}
-            />
+            <Text style={styles.labelNoPad}>3. Price at each selected market (₦)</Text>
+            {selectedMarkets.map((market) => (
+              <View key={market.id}>
+                <Text style={styles.marketPriceLabel}>{market.name}</Text>
+                <TextInput
+                  value={marketPrices[market.id] || ''}
+                  onChangeText={(value) => setMarketPrices((current) => ({ ...current, [market.id]: value }))}
+                  keyboardType="numeric"
+                  placeholder="e.g. 3500"
+                  style={styles.input}
+                />
+              </View>
+            ))}
 
-            <Text style={styles.labelNoPad}>4. Quantity this price covers</Text>
+            {!suggestingProduct ? <>
+            <Text style={styles.labelNoPad}>4. Quantity each price covers</Text>
             <View style={styles.quantityRow}>
               <TextInput
                 value={quantityValue}
@@ -439,13 +529,14 @@ export default function SubmitPriceScreen() {
               placeholder="e.g. Stall B12, Derica measure, foreign variety"
               style={styles.input}
             />
+            </> : null}
 
             <TouchableOpacity
               style={[styles.primaryBtn, mutation.isPending && { opacity: 0.6 }]}
               disabled={mutation.isPending}
               onPress={() => mutation.mutate()}
             >
-              <Text style={styles.primaryBtnText}>{mutation.isPending ? 'Submitting…' : 'Submit Market Price'}</Text>
+              <Text style={styles.primaryBtnText}>{mutation.isPending ? 'Submitting…' : suggestingProduct ? 'Send Product for Review' : 'Submit Market Prices'}</Text>
             </TouchableOpacity>
             {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
           </View>
@@ -518,6 +609,7 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: Colors.primary.deepBlue, borderColor: Colors.primary.deepBlue },
   chipText: { color: '#64748B', fontWeight: '700', fontSize: 13 },
   chipTextActive: { color: '#FFF' },
+  chipDistant: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
   marketStatusWrap: {
     paddingHorizontal: Spacing.lg,
     marginTop: 8,
@@ -549,6 +641,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
+  suggestionBox: {
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.md,
+    padding: Spacing.md,
+    borderRadius: 14,
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+  },
+  secondaryBtn: {
+    marginHorizontal: Spacing.lg,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  secondaryBtnText: { color: Colors.primary.deepBlue, fontWeight: '800' },
+  marketPriceLabel: { marginBottom: 6, color: '#334155', fontWeight: '800' },
   search: {
     flexDirection: 'row',
     alignItems: 'center',
