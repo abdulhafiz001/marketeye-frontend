@@ -26,3 +26,10 @@ Expo Go will **not** receive remote price alerts.
 - Date-stamped price history / change timeline on product detail
 - Airtime wallet + claim (≥ ₦200)
 - Leaderboard points (separate from wallet)
+
+
+
+To build the app for andriod preview:
+cd marketeye-frontend
+
+npx eas-cli build --profile preview --platform android

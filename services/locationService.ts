@@ -115,12 +115,12 @@ export function calculateHaversineDistanceKm(
 }
 
 /**
- * Returns true if the user is physically within the geofenced radius (default: 750 meters) of the market.
+ * Returns true if the user is physically within the geofenced radius (default: 10 km) of the market.
  */
 export function isUserInMarketGeofence(
   userCoords: { latitude?: number | null; longitude?: number | null } | null | undefined,
   marketCoords: { latitude?: number | null; longitude?: number | null } | null | undefined,
-  radiusKm = 0.75 // 750 meters
+  radiusKm = 10 // 10 kilometers
 ): boolean {
   if (
     !userCoords ||

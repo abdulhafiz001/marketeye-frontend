@@ -340,7 +340,7 @@ export function CommunityValidationBar({
                   <Text style={styles.signalName}>In-Market Geoverification</Text>
                   <Text style={styles.signalDesc}>
                     {signals?.is_geoverified
-                      ? 'GPS confirmed within 750m of market premises.'
+                      ? 'GPS confirmed within the market geofence (10km).'
                       : 'Standard community submission.'}
                   </Text>
                 </View>

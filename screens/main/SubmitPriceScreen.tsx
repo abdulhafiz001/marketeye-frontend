@@ -110,11 +110,20 @@ export default function SubmitPriceScreen() {
   const selectedMarkets = (marketsQ.data?.markets || []).filter((m) => marketIds.includes(m.id));
   const selectedProduct = (productsQ.data || []).find((p) => p.id === productId);
 
-  // Compute geofence proximity (within 750m)
+  // Compute geofence proximity (uses market's configured geofence_radius_m, default 10,000m / 10km)
   const distanceToMarket = (market: { lat: number | null; lng: number | null }) => {
     if (!userLoc || market.lat == null || market.lng == null) return null;
     return calculateHaversineDistanceKm(userLoc.lat, userLoc.lng, market.lat, market.lng);
   };
+
+  const marketRadiusMeters = (market: { geofence_radius_m?: number | null }) =>
+    Math.max(100, Number(market.geofence_radius_m || 10000));
+
+  const marketRadiusKm = (market: { geofence_radius_m?: number | null }) =>
+    marketRadiusMeters(market) / 1000;
+
+  const formatRadiusLabel = (meters: number) =>
+    meters >= 1000 ? `${+(meters / 1000).toFixed(1)} km` : `${meters} m`;
 
   const unitOptions = useMemo(() => {
     const base = selectedProduct?.unit ? [selectedProduct.unit] : [];
@@ -136,13 +145,15 @@ export default function SubmitPriceScreen() {
       setUserLoc({ lat: coords.latitude, lng: coords.longitude });
       const markets = (marketsQ.data?.markets || []).filter((market) => marketIds.includes(market.id));
       for (const market of markets) {
+        const radiusMeters = marketRadiusMeters(market);
+        const radiusKm = marketRadiusKm(market);
         const distance = market.lat == null || market.lng == null
           ? null
           : calculateHaversineDistanceKm(coords.latitude, coords.longitude, market.lat, market.lng);
-        if (distance === null || distance > 0.75) {
+        if (distance === null || distance > radiusKm) {
           throw new Error(distance === null
             ? `${market.name} does not have a verified map location.`
-            : `You are ${distance.toFixed(1)} km from ${market.name}. You must be within 750 m to submit a price for this market.`);
+            : `You are ${distance.toFixed(1)} km from ${market.name}. You must be within ${formatRadiusLabel(radiusMeters)} to submit a price for this market.`);
         }
       }
       const priceFor = (id: number) => Number((marketPrices[id] ?? '').replace(/,/g, ''));
@@ -354,7 +365,8 @@ export default function SubmitPriceScreen() {
               {(marketsQ.data?.markets || []).map((item) => {
                 const active = marketIds.includes(item.id);
                 const distance = distanceToMarket(item);
-                const nearby = distance != null && distance <= 0.75;
+                const radiusMeters = marketRadiusMeters(item);
+                const nearby = distance != null && distance <= marketRadiusKm(item);
                 return (
                   <TouchableOpacity
                     key={item.id}
@@ -372,7 +384,7 @@ export default function SubmitPriceScreen() {
                       if (!nearby) {
                         setAttemptedMarket(distance == null
                           ? `${item.name} has no verified map location and cannot be selected.`
-                          : `You are ${distance.toFixed(1)} km from ${item.name}. You must be within 750 m to report prices there.`);
+                          : `You are ${distance.toFixed(1)} km from ${item.name}. You must be within ${formatRadiusLabel(radiusMeters)} to report prices there.`);
                         return;
                       }
                       setAttemptedMarket(null);
@@ -395,7 +407,7 @@ export default function SubmitPriceScreen() {
               <Text style={styles.selected}>Selected: {selectedMarkets.map((market) => market.name).join(', ')}</Text>
             </View>
           ) : (
-            <Text style={styles.hint}>Select one or more markets within 750 m of your current location.</Text>
+            <Text style={styles.hint}>Select one or more markets within 10 km of your current location.</Text>
           )}
           {attemptedMarket ? <Text style={styles.errorText}>{attemptedMarket}</Text> : null}
 

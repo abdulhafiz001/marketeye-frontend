@@ -7,6 +7,7 @@ export type MarketRow = {
   area: string | null;
   lat: number | null;
   lng: number | null;
+  geofence_radius_m?: number;
 };
 
 export async function fetchMarkets() {
