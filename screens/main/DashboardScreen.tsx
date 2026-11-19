@@ -522,6 +522,18 @@ export default function DashboardScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Floating Action Button to open Submit Market Price Modal */}
+      <TouchableOpacity
+        style={styles.fab}
+        activeOpacity={0.88}
+        onPress={() => navigation.navigate('SubmitPrice')}
+        accessibilityRole="button"
+        accessibilityLabel="Submit market price"
+      >
+        <MaterialCommunityIcons name="plus" size={22} color="#FFF" />
+        <Text style={styles.fabText}>Report Price</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -529,7 +541,7 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
   scrollView: { flex: 1 },
-  scrollContent: { paddingBottom: Spacing.xl * 2 },
+  scrollContent: { paddingBottom: Spacing.xl * 3 },
   header: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.md,
@@ -797,4 +809,29 @@ const styles = StyleSheet.create({
   },
   ctaTitle: { color: '#FFF', fontSize: 15, fontWeight: '900' },
   ctaSub: { marginTop: 4, color: 'rgba(255,255,255,0.82)', fontWeight: '500', fontSize: 12, lineHeight: 16 },
+  fab: {
+    position: 'absolute',
+    right: Spacing.lg,
+    bottom: Spacing.lg,
+    backgroundColor: Colors.primary.deepBlue,
+    borderRadius: 999,
+    paddingVertical: 13,
+    paddingHorizontal: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  fabText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '900',
+    letterSpacing: 0.2,
+  },
 });

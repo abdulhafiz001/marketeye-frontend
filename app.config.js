@@ -68,7 +68,7 @@ const config = {
   orientation: 'portrait',
   icon: './assets/images/naija-price-img.png',
   scheme: 'marketeye',
-  userInterfaceStyle: 'automatic',
+  userInterfaceStyle: 'light',
   newArchEnabled: true,
   ios: {
     supportsTablet: true,

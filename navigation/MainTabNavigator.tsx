@@ -12,7 +12,12 @@ import { createStackNavigator } from '@react-navigation/stack';
 import React from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../constants/colors';
-import { headerStackScreenLayout, tabStackScreenLayout, withScreenSafeArea } from './screenSafeArea';
+import {
+  headerStackScreenLayout,
+  passthroughScreenLayout,
+  tabStackScreenLayout,
+  withScreenSafeArea,
+} from './screenSafeArea';
 
 import AboutAppScreen from '../screens/main/AboutAppScreen';
 import AccountSettingsScreen from '../screens/main/AccountSettingsScreen';
@@ -43,6 +48,12 @@ const PriceWatchStackNav = createStackNavigator();
 const BasketStackNav = createStackNavigator();
 const ProfileStackNav = createStackNavigator();
 
+const submitPriceModalOptions = {
+  presentation: 'transparentModal' as const,
+  cardOverlayEnabled: true,
+  cardStyle: { backgroundColor: 'transparent' },
+};
+
 function HomeStack() {
   return (
     <HomeStackNav.Navigator screenOptions={{ headerShown: false }} screenLayout={tabStackScreenLayout}>
@@ -57,7 +68,8 @@ function HomeStack() {
       <HomeStackNav.Screen
         name="SubmitPrice"
         component={SubmitPriceScreen}
-        options={{ presentation: 'modal' }}
+        layout={passthroughScreenLayout}
+        options={submitPriceModalOptions}
       />
     </HomeStackNav.Navigator>
   );
@@ -85,7 +97,8 @@ function MarketStack() {
       <MarketStackNav.Screen
         name="SubmitPrice"
         component={SubmitPriceScreen}
-        options={{ presentation: 'modal' }}
+        layout={passthroughScreenLayout}
+        options={submitPriceModalOptions}
       />
     </MarketStackNav.Navigator>
   );
@@ -101,7 +114,8 @@ function PriceWatchStack() {
       <PriceWatchStackNav.Screen
         name="SubmitPrice"
         component={SubmitPriceScreen}
-        options={{ presentation: 'modal' }}
+        layout={passthroughScreenLayout}
+        options={submitPriceModalOptions}
       />
     </PriceWatchStackNav.Navigator>
   );
@@ -117,7 +131,8 @@ function BasketStack() {
       <BasketStackNav.Screen
         name="SubmitPrice"
         component={SubmitPriceScreen}
-        options={{ presentation: 'modal' }}
+        layout={passthroughScreenLayout}
+        options={submitPriceModalOptions}
       />
     </BasketStackNav.Navigator>
   );
@@ -162,7 +177,8 @@ function ProfileStack() {
       <ProfileStackNav.Screen
         name="SubmitPrice"
         component={SubmitPriceScreen}
-        options={{ presentation: 'modal' }}
+        layout={passthroughScreenLayout}
+        options={{ ...submitPriceModalOptions, headerShown: false }}
       />
     </ProfileStackNav.Navigator>
   );

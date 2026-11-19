@@ -52,12 +52,23 @@ export async function submitPriceBatch(
     ApiSuccess<{
       accepted: number;
       failed: number;
+      points_awarded?: number;
+      wallet_awarded?: number;
       results: Array<{
         index: number;
         client_id: string | null;
         ok: boolean;
         message?: string;
-        submission?: { id: number; status: string; auto_approved: boolean; points_awarded: number };
+        submission?: {
+          id: number;
+          product_id?: number;
+          product_name?: string;
+          quantity_unit?: string;
+          status: string;
+          auto_approved: boolean;
+          points_awarded: number;
+          wallet_awarded?: number;
+        };
       }>;
       user: { points: number; wallet_balance: number };
     }>
@@ -73,10 +84,28 @@ export async function suggestCatalogProduct(payload: {
   reason?: string;
   market_prices: Array<{ market_id: number; price: number; latitude: number; longitude: number }>;
 }) {
-  const { data } = await api.post<ApiSuccess<{ suggestion: { id: number; status: string } }>>(
-    '/catalog/suggestions',
-    payload
-  );
+  const { data } = await api.post<
+    ApiSuccess<{
+      suggestion: { id: number; status: string };
+      product?: { id: number; name: string; unit: string };
+      accepted?: number;
+      failed?: number;
+      points_awarded?: number;
+      wallet_awarded?: number;
+      results?: Array<{
+        index: number;
+        ok: boolean;
+        submission?: {
+          id: number;
+          status: string;
+          auto_approved: boolean;
+          points_awarded: number;
+          wallet_awarded?: number;
+        };
+      }>;
+      user?: { points: number; wallet_balance: number };
+    }>
+  >('/catalog/suggestions', payload);
   return data.data;
 }
 
