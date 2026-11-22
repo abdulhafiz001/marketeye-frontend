@@ -58,7 +58,7 @@ export default function LeaderboardScreen() {
                 <Text style={styles.youRank}>#{you.rank}</Text>
                 <Text style={styles.youPoints}>{you.points.toLocaleString()} pts</Text>
               </View>
-            ) : null
+            ) : undefined
           }
           renderItem={({ item }) => {
             const isYou = userId && String(item.user.id) === String(userId);

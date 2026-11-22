@@ -49,7 +49,7 @@ export default function InsightsScreen() {
         <ScrollView
           contentContainerStyle={styles.content}
           refreshControl={
-            <RefreshControl refreshing={insightsQ.isRefetching} onRefresh={() => insightsQ.refetch()} />
+            <RefreshControl refreshing={insightsQ.isRefetching} onRefresh={() => { void insightsQ.refetch(); }} />
           }
         >
           <View style={styles.statsRow}>

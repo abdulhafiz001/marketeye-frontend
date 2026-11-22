@@ -72,7 +72,7 @@ export default function SubmitPriceScreen() {
   const [formError, setFormError] = useState<string | null>(null);
 
   const scale = useRef(new Animated.Value(0)).current;
-  const mainScrollRef = useRef<ScrollView>(null);
+  const mainScrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
 
   // Track offline queue count
   useEffect(() => {
@@ -1112,7 +1112,11 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   backdropTap: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
   },
   sheetWrapper: {
     width: '100%',
