@@ -2,6 +2,7 @@
  * Main App Entry Point
  */
 
+import '@/polyfills/reactNativeCompat';
 import { NavigationContainer } from '@react-navigation/native';
 import Constants from 'expo-constants';
 import { StatusBar } from 'expo-status-bar';
