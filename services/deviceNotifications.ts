@@ -11,8 +11,12 @@ let handlerReady = false;
 let channelReady = false;
 
 async function getNotifications(): Promise<NotificationsModule | null> {
-  // Expo Go cannot receive remote FCM/Expo push on modern Android — use a dev build.
-  if (Constants.appOwnership === 'expo') {
+  // Expo Go cannot receive remote FCM/Expo push on modern SDKs — use a dev build.
+  if (
+    Constants.appOwnership === 'expo' ||
+    Constants.executionEnvironment === 'storeClient' ||
+    Platform.OS === 'web'
+  ) {
     return null;
   }
 
@@ -142,5 +146,9 @@ export async function syncExpoPushTokenWithServer(): Promise<string | null> {
 }
 
 export function pushSupportedOnThisBuild(): boolean {
-  return Constants.appOwnership !== 'expo' && Platform.OS !== 'web';
+  return (
+    Constants.appOwnership !== 'expo' &&
+    Constants.executionEnvironment !== 'storeClient' &&
+    Platform.OS !== 'web'
+  );
 }

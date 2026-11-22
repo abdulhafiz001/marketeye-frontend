@@ -132,10 +132,6 @@ const config = {
     apiUrl: process.env.EXPO_PUBLIC_API_URL || 'https://marketeye.ahzcode.sbs/api/v1',
     ...(easProjectId ? { eas: { projectId: easProjectId } } : {}),
   },
-  experiments: {
-    typedRoutes: true,
-    reactCompiler: true,
-  },
 };
 
 module.exports = { expo: config };

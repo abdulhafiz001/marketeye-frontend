@@ -3,8 +3,10 @@
  */
 
 import { NavigationContainer } from '@react-navigation/native';
+import Constants from 'expo-constants';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useRef } from 'react';
+import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -38,6 +40,13 @@ export default function RootLayout() {
     let subResponse: { remove: () => void } | null = null;
     let isMounted = true;
 
+    const isExpoGo =
+      Constants.appOwnership === 'expo' ||
+      Constants.executionEnvironment === 'storeClient';
+    if (isExpoGo || Platform.OS === 'web') {
+      return;
+    }
+
     (async () => {
       try {
         const Notifications = await import('expo-notifications');
@@ -59,15 +68,17 @@ export default function RootLayout() {
           }
         });
 
-        const lastResp = await Notifications.getLastNotificationResponseAsync();
-        if (lastResp && isMounted && navigationRef.current) {
-          setTimeout(() => {
-            try {
-              navigationRef.current?.navigate('Main', {
-                screen: 'Notifications',
-              });
-            } catch {}
-          }, 800);
+        if (typeof Notifications.getLastNotificationResponseAsync === 'function') {
+          const lastResp = await Notifications.getLastNotificationResponseAsync();
+          if (lastResp && isMounted && navigationRef.current) {
+            setTimeout(() => {
+              try {
+                navigationRef.current?.navigate('Main', {
+                  screen: 'Notifications',
+                });
+              } catch {}
+            }, 800);
+          }
         }
       } catch {
         // Ignored if expo-notifications is unavailable
